@@ -31,9 +31,36 @@ export function LineArt({ flowers, ink, reduceMotion }: Props) {
       })
     );
 
-    flowers.forEach((f) => {
-      const cx = f.x * w;
-      const cy = f.y * h;
+    // Distribute flowers using a jittered grid so they don't clump. The
+    // central column (0.22..0.78, y>0.66) is reserved for the poem card.
+    const COLS = 9;
+    const ROWS = 5;
+    const cells: { x: number; y: number }[] = [];
+    for (let cy = 0; cy < ROWS; cy++) {
+      for (let cx = 0; cx < COLS; cx++) {
+        const gx = (cx + 0.5) / COLS;
+        const gy = 0.18 + (cy / (ROWS - 1)) * 0.7; // 0.18..0.88
+        // skip card column for the bottom 2 rows
+        if (gx > 0.22 && gx < 0.78 && gy > 0.66) continue;
+        // skip dev button cell
+        if (gx > 0.9 && gy > 0.86) continue;
+        cells.push({ x: gx, y: gy });
+      }
+    }
+    // shuffle cells deterministically (using flower hue sum as seed-ish)
+    const cellsShuffled = cells
+      .map((c, i) => ({ c, k: ((i * 9301 + 49297) % 233280) / 233280 }))
+      .sort((a, b) => a.k - b.k)
+      .map((x) => x.c);
+
+    flowers.forEach((f, i) => {
+      const slot = cellsShuffled[i % cellsShuffled.length];
+      const jitterX = ((i * 7) % 11) / 11 - 0.5;
+      const jitterY = ((i * 13) % 9) / 9 - 0.5;
+      const cellW = 1 / COLS;
+      const cellH = 0.7 / (ROWS - 1);
+      const cx = (slot.x + jitterX * cellW * 0.5) * w;
+      const cy = (slot.y + jitterY * cellH * 0.5) * h;
       const r = 18 + f.scale * 22;
 
       const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
