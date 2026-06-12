@@ -66,12 +66,12 @@ export const STYLES: Record<StyleId, StyleMeta> = {
   },
   impressionism: {
     id: "impressionism",
-    nameEs: "Impresionismo",
-    nameEn: "Impressionism",
+    nameEs: "Girasoles",
+    nameEn: "Sunflowers",
     background:
-      "linear-gradient(180deg, #d8e7f0 0%, #c9dcc4 50%, #8aae9b 100%)",
-    ink: "#1f2a2a",
-    accent: "#7a5db5",
+      "linear-gradient(180deg, #f1d8a8 0%, #e6b97a 45%, #a8a368 75%, #5d6e3a 100%)",
+    ink: "#2a1d0a",
+    accent: "#d29a2a",
   },
   artnouveau: {
     id: "artnouveau",
