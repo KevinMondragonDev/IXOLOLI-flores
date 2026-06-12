@@ -7,6 +7,7 @@ import { FlowerGlyph, type GlyphMode } from "./FlowerGlyph";
 import { useCursor } from "./Cursor";
 import { Pointillism } from "./styles/Pointillism";
 import { Impressionism } from "./styles/Impressionism";
+import { LineArt } from "./styles/LineArt";
 
 const MODE_BY_STYLE: Record<StyleId, GlyphMode> = {
   watercolor: "soft",
@@ -39,6 +40,9 @@ export function FlowerField({ flowers, styleId, ink, reduceMotion }: Props) {
   }
   if (styleId === "impressionism") {
     return <Impressionism flowers={flowers} ink={ink} reduceMotion={reduceMotion} />;
+  }
+  if (styleId === "lineart") {
+    return <LineArt flowers={flowers} ink={ink} reduceMotion={reduceMotion} />;
   }
 
   const mode = MODE_BY_STYLE[styleId];
@@ -90,7 +94,6 @@ export function FlowerField({ flowers, styleId, ink, reduceMotion }: Props) {
     >
       {styleId === "watercolor" && <WatercolorDefs />}
       {styleId === "artnouveau" && <ArtNouveauFrame ink={ink} />}
-      {styleId === "lineart" && <LineArtFrame />}
 
       {[...flowers, ...extras].map((f) => (
         <FlowerInstance
