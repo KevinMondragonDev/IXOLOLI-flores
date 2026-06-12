@@ -49,9 +49,11 @@ export function generateField(
       // push up but keep within a wide band so the field is well distributed
       f.y = 0.15 + rng() * 0.45;
     }
-    // Dev button bottom-right safe zone (~80px wide)
-    if (f.x > 0.9 && f.y > 0.88) {
-      f.x = 0.05 + rng() * 0.8;
+    // Dev panel safe zone (when open it's ~288×280px bottom-right). We always
+    // reserve a comfortable rectangle there so flowers never block the panel.
+    if (f.x > 0.78 && f.y > 0.55) {
+      f.x = 0.05 + rng() * 0.7;
+      f.y = 0.15 + rng() * 0.5;
     }
   }
   // sort so deeper flowers render first

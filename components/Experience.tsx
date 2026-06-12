@@ -96,7 +96,8 @@ export function Experience({ dateKey, dayOfWeek, dateLabelEs }: Props) {
       <button
         data-no-paint="true"
         onClick={() => setDevOpen((v) => !v)}
-        className="fixed bottom-3 right-3 z-30 w-7 h-7 rounded-full bg-black/20 hover:bg-black/40 text-white text-[11px] backdrop-blur transition pointer-events-auto"
+        className="fixed bottom-3 right-3 z-50 w-8 h-8 rounded-full bg-black/70 hover:bg-black text-white text-[12px] transition pointer-events-auto"
+        style={{ border: "1px solid rgba(255,255,255,0.2)" }}
         aria-label="Modo desarrollador"
         title="Dev"
       >
@@ -106,11 +107,12 @@ export function Experience({ dateKey, dayOfWeek, dateLabelEs }: Props) {
       {devOpen && (
         <div
           data-no-paint="true"
-          className="fixed bottom-12 right-3 z-30 w-72 rounded-xl p-4 shadow-2xl pointer-events-auto"
+          className="fixed bottom-12 right-3 z-50 w-72 rounded-xl p-4 shadow-2xl pointer-events-auto"
           style={{
-            background: "rgba(20,20,24,0.92)",
+            background: "#141418",
             color: "#f5f5f5",
-            border: "1px solid rgba(255,255,255,0.08)",
+            border: "1px solid rgba(255,255,255,0.1)",
+            isolation: "isolate",
           }}
         >
           <div className="text-xs uppercase tracking-widest opacity-70 mb-3">
