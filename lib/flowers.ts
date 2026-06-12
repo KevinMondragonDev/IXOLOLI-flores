@@ -40,6 +40,19 @@ export function generateField(
       z,
     });
   }
+  // Keep flowers out of UI hotspots: poem card (bottom center) and dev button
+  // (bottom right). We don't render below the card or behind the panel so the
+  // text always stays legible.
+  for (const f of flowers) {
+    // Card area: x in [0.08, 0.92], y in [0.62, 1.00]
+    if (f.x > 0.08 && f.x < 0.92 && f.y > 0.62) {
+      f.y = 0.32 + rng() * 0.28; // push up into the upper field
+    }
+    // Dev button bottom-right safe zone
+    if (f.x > 0.82 && f.y > 0.84) {
+      f.x = 0.05 + rng() * 0.75;
+    }
+  }
   // sort so deeper flowers render first
   flowers.sort((a, b) => a.z - b.z);
   return flowers;
