@@ -12,10 +12,19 @@ Cada día, un campo de flores único —con un estilo artístico distinto y una 
 
 ## Stack
 
-- Next.js 14 (App Router) + TypeScript
-- TailwindCSS
-- SVG nativo + Canvas 2D (para puntillismo e impresionismo)
+- Next.js 14 (App Router) + TypeScript + TailwindCSS
 - `next/font` (Cormorant Garamond + Inter)
+- **Una librería distinta por estilo / día** (cargadas con `next/dynamic`):
+
+| Día | Estilo | Librería |
+|---|---|---|
+| Domingo | Trazo a mano | [`roughjs`](https://github.com/rough-stuff/rough) |
+| Lunes | Acuarela | SVG + filtros (`feTurbulence` + `feDisplacementMap`) |
+| Martes | Puntillismo | [`pixi.js`](https://pixijs.com) v8 |
+| Miércoles | Cartoon | [`@lottiefiles/dotlottie-react`](https://github.com/LottieFiles/dotlottie-web) |
+| Jueves | Realista (3D) | [`@react-three/fiber`](https://github.com/pmndrs/react-three-fiber) + `drei` + `postprocessing` |
+| Viernes | Girasoles | [`@tsparticles/react`](https://particles.js.org/) (corazones) + [`gsap`](https://gsap.com/) |
+| Sábado | Art Nouveau | [`paper.js`](http://paperjs.org) |
 
 ## Desarrollo
 

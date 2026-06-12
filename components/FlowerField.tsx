@@ -5,9 +5,27 @@ import type { Flower } from "@/lib/flowers";
 import type { StyleId } from "@/lib/styles";
 import { FlowerGlyph, type GlyphMode } from "./FlowerGlyph";
 import { useCursor } from "./Cursor";
-import { Pointillism } from "./styles/Pointillism";
+import dynamic from "next/dynamic";
 import { Impressionism } from "./styles/Impressionism";
 import { LineArt } from "./styles/LineArt";
+
+type StyleProps = { flowers: Flower[]; ink: string; reduceMotion: boolean };
+const Pointillism = dynamic<StyleProps>(
+  () => import("./styles/Pointillism").then((m) => m.Pointillism),
+  { ssr: false }
+);
+const Realistic = dynamic<StyleProps>(
+  () => import("./styles/Realistic").then((m) => m.Realistic),
+  { ssr: false }
+);
+const Cartoon = dynamic<StyleProps>(
+  () => import("./styles/Cartoon").then((m) => m.Cartoon),
+  { ssr: false }
+);
+const ArtNouveau = dynamic<StyleProps>(
+  () => import("./styles/ArtNouveau").then((m) => m.ArtNouveau),
+  { ssr: false }
+);
 
 const MODE_BY_STYLE: Record<StyleId, GlyphMode> = {
   watercolor: "soft",
@@ -34,7 +52,7 @@ export function FlowerField({ flowers, styleId, ink, reduceMotion }: Props) {
   const [extras, setExtras] = useState<Flower[]>([]);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Interactive canvas styles handled separately
+  // Each style is powered by a different rendering library
   if (styleId === "pointillism") {
     return <Pointillism flowers={flowers} ink={ink} reduceMotion={reduceMotion} />;
   }
@@ -43,6 +61,15 @@ export function FlowerField({ flowers, styleId, ink, reduceMotion }: Props) {
   }
   if (styleId === "lineart") {
     return <LineArt flowers={flowers} ink={ink} reduceMotion={reduceMotion} />;
+  }
+  if (styleId === "realistic") {
+    return <Realistic flowers={flowers} ink={ink} reduceMotion={reduceMotion} />;
+  }
+  if (styleId === "cartoon") {
+    return <Cartoon flowers={flowers} ink={ink} reduceMotion={reduceMotion} />;
+  }
+  if (styleId === "artnouveau") {
+    return <ArtNouveau flowers={flowers} ink={ink} reduceMotion={reduceMotion} />;
   }
 
   const mode = MODE_BY_STYLE[styleId];
@@ -93,7 +120,6 @@ export function FlowerField({ flowers, styleId, ink, reduceMotion }: Props) {
       aria-label="Campo de flores interactivo"
     >
       {styleId === "watercolor" && <WatercolorDefs />}
-      {styleId === "artnouveau" && <ArtNouveauFrame ink={ink} />}
 
       {[...flowers, ...extras].map((f) => (
         <FlowerInstance
