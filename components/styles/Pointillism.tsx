@@ -338,11 +338,20 @@ export function Pointillism({ flowers: _flowers, reduceMotion: _reduceMotion }: 
         }
       };
 
+      const isOverProtected = (clientX: number, clientY: number) => {
+        const el = document.elementFromPoint(clientX, clientY) as HTMLElement | null;
+        return !!el?.closest("[data-no-paint]");
+      };
+
       const onPointerMove = (e: PointerEvent) => {
         const rect = (app.canvas as HTMLCanvasElement).getBoundingClientRect();
         const dpr = app.renderer.resolution;
         const x = (e.clientX - rect.left) * dpr;
         const y = (e.clientY - rect.top) * dpr;
+        if (isOverProtected(e.clientX, e.clientY)) {
+          brushPreview.visible = false;
+          return;
+        }
         brushPreview.visible = true;
         brushPreview.x = x;
         brushPreview.y = y;
@@ -358,6 +367,7 @@ export function Pointillism({ flowers: _flowers, reduceMotion: _reduceMotion }: 
         }
       };
       const onPointerDown = (e: PointerEvent) => {
+        if (isOverProtected(e.clientX, e.clientY)) return;
         const rect = (app.canvas as HTMLCanvasElement).getBoundingClientRect();
         const dpr = app.renderer.resolution;
         lastX = (e.clientX - rect.left) * dpr;

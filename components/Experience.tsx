@@ -94,6 +94,7 @@ export function Experience({ dateKey, dayOfWeek, dateLabelEs }: Props) {
 
       {/* Dev trigger */}
       <button
+        data-no-paint="true"
         onClick={() => setDevOpen((v) => !v)}
         className="fixed bottom-3 right-3 z-30 w-7 h-7 rounded-full bg-black/20 hover:bg-black/40 text-white text-[11px] backdrop-blur transition pointer-events-auto"
         aria-label="Modo desarrollador"
@@ -104,6 +105,7 @@ export function Experience({ dateKey, dayOfWeek, dateLabelEs }: Props) {
 
       {devOpen && (
         <div
+          data-no-paint="true"
           className="fixed bottom-12 right-3 z-30 w-72 rounded-xl p-4 shadow-2xl pointer-events-auto"
           style={{
             background: "rgba(20,20,24,0.92)",

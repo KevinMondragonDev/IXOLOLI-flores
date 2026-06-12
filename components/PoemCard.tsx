@@ -18,6 +18,7 @@ export function PoemCard({ poem, styleNameEs, styleNameEn, dateLabel, ink }: Pro
 
   return (
     <div
+      data-no-paint="true"
       className="relative max-w-2xl mx-auto px-6 sm:px-10 py-8 rounded-2xl backdrop-blur-md"
       style={{
         color: ink,
