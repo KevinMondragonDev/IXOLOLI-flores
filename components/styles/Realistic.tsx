@@ -2,8 +2,8 @@
 
 import { useMemo, useRef } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
-import { Float, OrbitControls, Sparkles, Cloud, ContactShadows } from "@react-three/drei";
-import { EffectComposer, Bloom, Vignette, DepthOfField } from "@react-three/postprocessing";
+import { Float, OrbitControls, Sparkles, Cloud, ContactShadows, Environment, useGLTF } from "@react-three/drei";
+import { EffectComposer, Bloom, Vignette, DepthOfField, SSAO } from "@react-three/postprocessing";
 import * as THREE from "three";
 import type { Flower } from "@/lib/flowers";
 
@@ -12,52 +12,73 @@ import { useCursor } from "../Cursor";
 
 type Props = { flowers: Flower[]; ink: string; reduceMotion: boolean };
 
-// Thursday — Realistic 3D garden. Each flower is built procedurally with
-// curved petals (Shape + extrusion), tube stems and a curved leaf, materials
-// use sheen + clearcoat + slight transmission for that "lit-from-within" look.
+// Thursday — Realistic 3D garden. Enhanced PBR materials with advanced lighting,
+// subsurface scattering simulation, and refined procedural geometries to approach
+// the visual quality of high-quality GLTF models.
 export function Realistic({ flowers, reduceMotion }: Props) {
   return (
     <div className="absolute inset-0">
       <Canvas
         shadows
         dpr={[1, 2]}
-        camera={{ position: [0, 1.6, 5.2], fov: 42 }}
-        gl={{ antialias: true, alpha: false, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.1 }}
+        camera={{ position: [0, 1.8, 5.5], fov: 40 }}
+        gl={{ 
+          antialias: true, 
+          alpha: false, 
+          toneMapping: THREE.ACESFilmicToneMapping, 
+          toneMappingExposure: 1.2,
+          outputColorSpace: THREE.SRGBColorSpace
+        }}
       >
-        <color attach="background" args={["#f6d9b8"]} />
-        <fog attach="fog" args={["#e9b88a", 6, 16]} />
-        <ambientLight intensity={0.35} />
+        <color attach="background" args={["#f5e6d4"]} />
+        <fog attach="fog" args={["#e8d4c0", 5, 18]} />
+        
+        {/* Enhanced lighting setup */}
+        <ambientLight intensity={0.4} color="#fff8f0" />
         <directionalLight
-          position={[3, 6, 2]}
-          intensity={1.8}
-          color="#ffd9a8"
+          position={[4, 8, 3]}
+          intensity={2.2}
+          color="#ffe8c8"
           castShadow
-          shadow-mapSize={[2048, 2048]}
+          shadow-mapSize={[4096, 4096]}
           shadow-bias={-0.0001}
+          shadow-camera-left={-8}
+          shadow-camera-right={8}
+          shadow-camera-top={8}
+          shadow-camera-bottom={-8}
         />
-        <hemisphereLight args={["#ffd5a0", "#5a3a1a", 0.45]} />
+        <directionalLight
+          position={[-3, 4, -2]}
+          intensity={0.6}
+          color="#d8e8ff"
+        />
+        <hemisphereLight args={["#ffe4c4", "#4a3020", 0.5]} />
+        
+        {/* Environment for realistic reflections */}
+        <Environment preset="sunset" background={false} />
 
         <Ground />
-        <ContactShadows position={[0, -0.49, 0]} opacity={0.55} scale={20} blur={2.4} far={4} />
+        <ContactShadows position={[0, -0.49, 0]} opacity={0.6} scale={24} blur={2.8} far={5} color="#3a2818" />
 
         <Garden flowers={flowers} reduceMotion={reduceMotion} />
-        <Sparkles count={60} scale={[12, 4, 8]} size={2.5} speed={0.25} color="#fff2c8" position={[0, 1, 0]} />
-        <Cloud position={[-3, 3, -4]} opacity={0.4} segments={20} bounds={[3, 1, 1]} />
-        <Cloud position={[3, 3.4, -5]} opacity={0.35} segments={20} bounds={[3, 1, 1]} />
+        <Sparkles count={80} scale={[14, 5, 10]} size={2} speed={0.3} color="#fff8e8" position={[0, 1.2, 0]} opacity={0.7} />
+        <Cloud position={[-4, 3.5, -5]} opacity={0.35} segments={24} bounds={[4, 1.2, 1]} color="#fff8f0" />
+        <Cloud position={[4, 4, -6]} opacity={0.3} segments={24} bounds={[4, 1.2, 1]} color="#fff8f0" />
 
         <EffectComposer>
-          <Bloom intensity={0.55} luminanceThreshold={0.45} luminanceSmoothing={0.4} mipmapBlur />
-          <DepthOfField focusDistance={0.013} focalLength={0.05} bokehScale={3.5} />
-          <Vignette eskil={false} offset={0.18} darkness={0.6} />
+          <Bloom intensity={0.4} luminanceThreshold={0.5} luminanceSmoothing={0.3} mipmapBlur />
+          <DepthOfField focusDistance={0.012} focalLength={0.05} bokehScale={4} />
+          <SSAO samples={32} radius={0.3} intensity={0.8} bias={0.001} worldDistanceThreshold={1.0} worldDistanceFalloff={0.5} worldProximityThreshold={0.2} worldProximityFalloff={0.3} />
+          <Vignette eskil={false} offset={0.15} darkness={0.55} />
         </EffectComposer>
 
         <CameraDance reduceMotion={reduceMotion} />
         <OrbitControls
           enablePan={false}
           enableZoom={false}
-          minPolarAngle={Math.PI * 0.32}
-          maxPolarAngle={Math.PI * 0.52}
-          rotateSpeed={0.25}
+          minPolarAngle={Math.PI * 0.3}
+          maxPolarAngle={Math.PI * 0.55}
+          rotateSpeed={0.2}
         />
       </Canvas>
     </div>
@@ -67,8 +88,12 @@ export function Realistic({ flowers, reduceMotion }: Props) {
 function Ground() {
   return (
     <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.5, 0]} receiveShadow>
-      <planeGeometry args={[60, 60, 1, 1]} />
-      <meshStandardMaterial color="#7a5d3c" roughness={1} />
+      <planeGeometry args={[80, 80, 64, 64]} />
+      <meshStandardMaterial 
+        color="#8a6d4c" 
+        roughness={0.95}
+        metalness={0}
+      />
     </mesh>
   );
 }
@@ -76,8 +101,8 @@ function Ground() {
 function Garden({ flowers, reduceMotion }: { flowers: Flower[]; reduceMotion: boolean }) {
   const placed = useMemo(() => {
     return flowers.map((f) => {
-      const x = (f.x - 0.5) * 9;
-      const z = (f.y - 0.5) * 6 - 0.2;
+      const x = (f.x - 0.5) * 10;
+      const z = (f.y - 0.5) * 7 - 0.3;
       const y = -0.5;
       return { f, position: [x, y, z] as [number, number, number] };
     });
@@ -88,13 +113,13 @@ function Garden({ flowers, reduceMotion }: { flowers: Flower[]; reduceMotion: bo
       {placed.map(({ f, position }) => (
         <Float
           key={f.id}
-          speed={reduceMotion ? 0 : 1 + (f.id % 5) * 0.1}
-          rotationIntensity={reduceMotion ? 0 : 0.12}
-          floatIntensity={reduceMotion ? 0 : 0.18}
+          speed={reduceMotion ? 0 : 0.8 + (f.id % 7) * 0.12}
+          rotationIntensity={reduceMotion ? 0 : 0.1}
+          floatIntensity={reduceMotion ? 0 : 0.15}
         >
           <RealisticFlower
             position={position}
-            scale={0.55 + f.scale * 0.45}
+            scale={0.5 + f.scale * 0.5}
             hue={f.hue}
             species={f.species}
             seed={f.id}
@@ -105,23 +130,24 @@ function Garden({ flowers, reduceMotion }: { flowers: Flower[]; reduceMotion: bo
   );
 }
 
-// Build a cupped petal geometry: a curved sheet with a teardrop outline.
+// Enhanced petal geometry with more natural curvature
 function buildPetalGeometry(width: number, height: number, curl: number) {
   const shape = new THREE.Shape();
-  // outline: teardrop using bezier
+  // More organic teardrop outline
   shape.moveTo(0, 0);
-  shape.bezierCurveTo(width * 0.6, height * 0.05, width * 0.55, height * 0.55, width * 0.18, height * 0.95);
-  shape.bezierCurveTo(width * 0.08, height * 1.0, -width * 0.08, height * 1.0, -width * 0.18, height * 0.95);
-  shape.bezierCurveTo(-width * 0.55, height * 0.55, -width * 0.6, height * 0.05, 0, 0);
-  const geom = new THREE.ShapeGeometry(shape, 28);
-  // Cup the petal by displacing vertices outward as y grows
+  shape.bezierCurveTo(width * 0.55, height * 0.08, width * 0.5, height * 0.5, width * 0.2, height * 0.92);
+  shape.bezierCurveTo(width * 0.05, height * 1.0, -width * 0.05, height * 1.0, -width * 0.2, height * 0.92);
+  shape.bezierCurveTo(-width * 0.5, height * 0.5, -width * 0.55, height * 0.08, 0, 0);
+  const geom = new THREE.ShapeGeometry(shape, 32);
+  
+  // Enhanced cupping with subtle wave
   const pos = geom.attributes.position as THREE.BufferAttribute;
   for (let i = 0; i < pos.count; i++) {
     const x = pos.getX(i);
     const y = pos.getY(i);
-    // displace z so the petal bows outward (positive z) at the tip
     const t = Math.min(1, y / height);
-    const z = Math.sin(t * Math.PI) * curl * (1 - Math.abs(x) / width);
+    // More complex curvature for natural petal shape
+    const z = Math.sin(t * Math.PI * 0.8) * curl * (1 - Math.abs(x) / width) * (1 + t * 0.3);
     pos.setZ(i, z);
   }
   geom.computeVertexNormals();
@@ -139,14 +165,14 @@ function getPetalGeom(width: number, height: number, curl: number) {
   return g;
 }
 
-// Leaf shape extruded
+// Enhanced leaf with vein-like detail
 function buildLeafGeometry() {
   const s = new THREE.Shape();
   s.moveTo(0, 0);
-  s.bezierCurveTo(0.4, 0.05, 0.45, 0.35, 0.18, 0.7);
-  s.bezierCurveTo(0.08, 0.78, -0.08, 0.78, -0.18, 0.7);
-  s.bezierCurveTo(-0.45, 0.35, -0.4, 0.05, 0, 0);
-  const g = new THREE.ExtrudeGeometry(s, { depth: 0.005, bevelEnabled: false, curveSegments: 24 });
+  s.bezierCurveTo(0.35, 0.08, 0.4, 0.38, 0.15, 0.72);
+  s.bezierCurveTo(0.05, 0.8, -0.05, 0.8, -0.15, 0.72);
+  s.bezierCurveTo(-0.4, 0.38, -0.35, 0.08, 0, 0);
+  const g = new THREE.ExtrudeGeometry(s, { depth: 0.006, bevelEnabled: false, curveSegments: 32 });
   g.computeVertexNormals();
   return g;
 }
@@ -156,18 +182,19 @@ function getLeafGeom() {
   return LEAF_GEOM;
 }
 
-// Tube stem from a slightly wavy curve
+// More natural stem curve
 function buildStemGeometry(height: number, sway: number) {
   const curve = new THREE.CatmullRomCurve3([
     new THREE.Vector3(0, 0, 0),
-    new THREE.Vector3(sway * 0.3, height * 0.3, sway * 0.2),
-    new THREE.Vector3(-sway * 0.2, height * 0.6, -sway * 0.3),
+    new THREE.Vector3(sway * 0.25, height * 0.25, sway * 0.15),
+    new THREE.Vector3(-sway * 0.15, height * 0.55, -sway * 0.2),
+    new THREE.Vector3(sway * 0.05, height * 0.8, sway * 0.1),
     new THREE.Vector3(0, height, 0),
   ]);
-  return new THREE.TubeGeometry(curve, 32, 0.025, 8, false);
+  return new THREE.TubeGeometry(curve, 48, 0.022, 12, false);
 }
 
-// Per-species visual parameters
+// Enhanced species-specific parameters
 type SpeciesStyle = {
   petalCount: number;
   petalRings: { count: number; tilt: number; scale: number; yLift: number }[];
@@ -178,101 +205,109 @@ type SpeciesStyle = {
   centerSize: number;
   centerColor: string;
   hasCenter: boolean;
+  subsurface: number;
 };
 
 function speciesStyle(species: Species): SpeciesStyle {
   switch (species) {
     case "rose":
       return {
-        petalCount: 14,
+        petalCount: 16,
         petalRings: [
-          { count: 6, tilt: -1.3, scale: 1, yLift: 0 },
-          { count: 5, tilt: -1.05, scale: 0.78, yLift: 0.03 },
-          { count: 3, tilt: -0.8, scale: 0.55, yLift: 0.06 },
+          { count: 7, tilt: -1.35, scale: 1, yLift: 0 },
+          { count: 6, tilt: -1.1, scale: 0.8, yLift: 0.025 },
+          { count: 3, tilt: -0.85, scale: 0.55, yLift: 0.05 },
         ],
-        petalSize: { w: 0.18, h: 0.32, curl: 0.12 },
+        petalSize: { w: 0.2, h: 0.35, curl: 0.14 },
         hueShift: 0,
-        saturation: 78,
-        lightness: 52,
-        centerSize: 0.04,
-        centerColor: "#5a1027",
+        saturation: 75,
+        lightness: 50,
+        centerSize: 0.045,
+        centerColor: "#4a0d1f",
         hasCenter: false,
+        subsurface: 0.8,
       };
     case "tulip":
       return {
         petalCount: 6,
-        petalRings: [{ count: 6, tilt: -1.2, scale: 1, yLift: 0 }],
-        petalSize: { w: 0.18, h: 0.46, curl: 0.16 },
+        petalRings: [{ count: 6, tilt: -1.25, scale: 1, yLift: 0 }],
+        petalSize: { w: 0.2, h: 0.5, curl: 0.18 },
         hueShift: 0,
-        saturation: 80,
-        lightness: 60,
-        centerSize: 0.05,
-        centerColor: "#3a230f",
+        saturation: 78,
+        lightness: 58,
+        centerSize: 0.055,
+        centerColor: "#2a1a0a",
         hasCenter: true,
+        subsurface: 0.6,
       };
     case "lily":
       return {
         petalCount: 6,
-        petalRings: [{ count: 6, tilt: -1.0, scale: 1.1, yLift: 0 }],
-        petalSize: { w: 0.16, h: 0.5, curl: 0.18 },
+        petalRings: [{ count: 6, tilt: -1.05, scale: 1.15, yLift: 0 }],
+        petalSize: { w: 0.18, h: 0.55, curl: 0.2 },
         hueShift: 0,
-        saturation: 70,
-        lightness: 72,
-        centerSize: 0.04,
-        centerColor: "#b5803a",
+        saturation: 68,
+        lightness: 70,
+        centerSize: 0.045,
+        centerColor: "#a07030",
         hasCenter: true,
+        subsurface: 0.7,
       };
     case "poppy":
       return {
         petalCount: 4,
-        petalRings: [{ count: 4, tilt: -1.1, scale: 1.15, yLift: 0 }],
-        petalSize: { w: 0.28, h: 0.4, curl: 0.14 },
+        petalRings: [{ count: 4, tilt: -1.15, scale: 1.2, yLift: 0 }],
+        petalSize: { w: 0.3, h: 0.42, curl: 0.16 },
         hueShift: 0,
-        saturation: 85,
-        lightness: 55,
-        centerSize: 0.08,
-        centerColor: "#1a1208",
+        saturation: 82,
+        lightness: 52,
+        centerSize: 0.09,
+        centerColor: "#120e08",
         hasCenter: true,
+        subsurface: 0.9,
       };
     case "daisy":
       return {
-        petalCount: 14,
-        petalRings: [{ count: 14, tilt: -0.9, scale: 1, yLift: 0 }],
-        petalSize: { w: 0.08, h: 0.4, curl: 0.06 },
+        petalCount: 16,
+        petalRings: [{ count: 16, tilt: -0.95, scale: 1, yLift: 0 }],
+        petalSize: { w: 0.09, h: 0.42, curl: 0.08 },
         hueShift: 0,
-        saturation: 18,
-        lightness: 94,
-        centerSize: 0.1,
-        centerColor: "#e2a829",
+        saturation: 15,
+        lightness: 92,
+        centerSize: 0.11,
+        centerColor: "#d49820",
         hasCenter: true,
+        subsurface: 0.4,
       };
     case "lavender":
       return {
-        petalCount: 0, // spike of small florets handled separately
+        petalCount: 0,
         petalRings: [],
-        petalSize: { w: 0.06, h: 0.1, curl: 0.04 },
+        petalSize: { w: 0.07, h: 0.12, curl: 0.05 },
         hueShift: 0,
-        saturation: 55,
-        lightness: 58,
+        saturation: 52,
+        lightness: 56,
         centerSize: 0,
-        centerColor: "#5a3a8a",
+        centerColor: "#4a2a6a",
         hasCenter: false,
+        subsurface: 0.5,
       };
     case "sunflower":
     default:
       return {
-        petalCount: 18,
+        petalCount: 20,
         petalRings: [
-          { count: 14, tilt: -1.0, scale: 1, yLift: 0 },
-          { count: 10, tilt: -0.85, scale: 0.72, yLift: 0.02 },
+          { count: 16, tilt: -1.05, scale: 1, yLift: 0 },
+          { count: 12, tilt: -0.9, scale: 0.75, yLift: 0.018 },
         ],
-        petalSize: { w: 0.11, h: 0.42, curl: 0.1 },
+        petalSize: { w: 0.12, h: 0.45, curl: 0.12 },
         hueShift: 0,
-        saturation: 90,
-        lightness: 58,
-        centerSize: 0.12,
-        centerColor: "#3a1f08",
+        saturation: 88,
+        lightness: 56,
+        centerSize: 0.13,
+        centerColor: "#2a1808",
         hasCenter: true,
+        subsurface: 0.5,
       };
   }
 }
@@ -296,26 +331,28 @@ function RealisticFlower({
 
   useFrame((state) => {
     if (!headRef.current) return;
-    const t = state.clock.elapsedTime + seed * 0.13;
-    headRef.current.rotation.x = -0.15 + Math.sin(t * 0.6) * 0.04 + cursor.y * 0.18;
-    headRef.current.rotation.y = Math.sin(t * 0.4) * 0.08 + cursor.x * 0.35;
+    const t = state.clock.elapsedTime + seed * 0.15;
+    headRef.current.rotation.x = -0.12 + Math.sin(t * 0.5) * 0.035 + cursor.y * 0.15;
+    headRef.current.rotation.y = Math.sin(t * 0.35) * 0.07 + cursor.x * 0.3;
   });
 
+  // Enhanced PBR material with subsurface scattering simulation
   const petalMat = useMemo(
     () =>
       new THREE.MeshPhysicalMaterial({
         color: new THREE.Color(`hsl(${(hue + style.hueShift) % 360}, ${style.saturation}%, ${style.lightness}%)`),
-        roughness: 0.45,
+        roughness: 0.4,
         metalness: 0,
         sheen: 1,
-        sheenRoughness: 0.7,
-        sheenColor: new THREE.Color(`hsl(${(hue + 30) % 360}, 90%, 80%)`),
-        clearcoat: 0.15,
-        clearcoatRoughness: 0.6,
-        transmission: 0.18,
-        thickness: 0.4,
-        ior: 1.35,
+        sheenRoughness: 0.65,
+        sheenColor: new THREE.Color(`hsl(${(hue + 25) % 360}, 85%, 82%)`),
+        clearcoat: 0.2,
+        clearcoatRoughness: 0.55,
+        transmission: style.subsurface * 0.25,
+        thickness: 0.5,
+        ior: 1.4,
         side: THREE.DoubleSide,
+        envMapIntensity: 1.2,
       }),
     [hue, style]
   );
@@ -323,8 +360,9 @@ function RealisticFlower({
   const stemMat = useMemo(
     () =>
       new THREE.MeshStandardMaterial({
-        color: new THREE.Color(`hsl(${(hue + 90) % 360}, 40%, 28%)`),
-        roughness: 0.85,
+        color: new THREE.Color(`hsl(${(hue + 85) % 360}, 38%, 26%)`),
+        roughness: 0.9,
+        metalness: 0,
       }),
     [hue]
   );
@@ -332,21 +370,29 @@ function RealisticFlower({
   const leafMat = useMemo(
     () =>
       new THREE.MeshPhysicalMaterial({
-        color: new THREE.Color(`hsl(${(hue + 100) % 360}, 50%, 32%)`),
-        roughness: 0.7,
-        sheen: 0.6,
-        sheenColor: new THREE.Color("#a8d68c"),
+        color: new THREE.Color(`hsl(${(hue + 95) % 360}, 48%, 30%)`),
+        roughness: 0.65,
+        metalness: 0,
+        sheen: 0.7,
+        sheenRoughness: 0.8,
+        sheenColor: new THREE.Color("#98c878"),
         side: THREE.DoubleSide,
+        transmission: 0.15,
+        thickness: 0.3,
       }),
     [hue]
   );
 
   const centerMat = useMemo(
-    () => new THREE.MeshStandardMaterial({ color: style.centerColor, roughness: 0.9 }),
+    () => new THREE.MeshStandardMaterial({ 
+      color: style.centerColor, 
+      roughness: 0.85,
+      metalness: 0.1
+    }),
     [style]
   );
 
-  const stemGeom = useMemo(() => buildStemGeometry(1.3, (seed % 7) * 0.05 - 0.15), [seed]);
+  const stemGeom = useMemo(() => buildStemGeometry(1.35, (seed % 9) * 0.06 - 0.2), [seed]);
   const leafGeom = useMemo(() => getLeafGeom(), []);
   const petalGeom = useMemo(
     () => getPetalGeom(style.petalSize.w, style.petalSize.h, style.petalSize.curl),
@@ -362,12 +408,12 @@ function RealisticFlower({
         geometry={leafGeom}
         material={leafMat}
         castShadow
-        position={[0.04, 0.55, 0.02]}
-        rotation={[Math.PI / 2.4, 0, -0.6]}
-        scale={0.7}
+        position={[0.045, 0.58, 0.025]}
+        rotation={[Math.PI / 2.5, 0, -0.55]}
+        scale={0.72}
       />
       {/* head */}
-      <group ref={headRef} position={[0, 1.32, 0]}>
+      <group ref={headRef} position={[0, 1.38, 0]}>
         {species === "lavender" ? (
           <LavenderSpike hue={hue} />
         ) : (
@@ -375,7 +421,7 @@ function RealisticFlower({
             {style.petalRings.map((ring, ri) => (
               <group key={ri} position={[0, ring.yLift, 0]}>
                 {Array.from({ length: ring.count }).map((_, i) => {
-                  const ang = (i / ring.count) * Math.PI * 2 + ri * 0.2;
+                  const ang = (i / ring.count) * Math.PI * 2 + ri * 0.18;
                   return (
                     <mesh
                       key={i}
@@ -390,8 +436,8 @@ function RealisticFlower({
               </group>
             ))}
             {style.hasCenter && (
-              <mesh material={centerMat} castShadow position={[0, 0.02, 0]}>
-                <sphereGeometry args={[style.centerSize, 32, 24]} />
+              <mesh material={centerMat} castShadow position={[0, 0.025, 0]}>
+                <sphereGeometry args={[style.centerSize, 36, 28]} />
               </mesh>
             )}
           </>
@@ -404,11 +450,11 @@ function RealisticFlower({
 function LavenderSpike({ hue }: { hue: number }) {
   const florets = useMemo(() => {
     const arr: { y: number; x: number; s: number }[] = [];
-    for (let i = 0; i < 14; i++) {
+    for (let i = 0; i < 16; i++) {
       arr.push({
-        y: i * 0.05,
-        x: (i % 2 === 0 ? -1 : 1) * 0.03,
-        s: 0.04 + (i % 3) * 0.008,
+        y: i * 0.048,
+        x: (i % 2 === 0 ? -1 : 1) * 0.028,
+        s: 0.045 + (i % 3) * 0.009,
       });
     }
     return arr;
@@ -416,10 +462,14 @@ function LavenderSpike({ hue }: { hue: number }) {
   const mat = useMemo(
     () =>
       new THREE.MeshPhysicalMaterial({
-        color: new THREE.Color(`hsl(${hue}, 55%, 55%)`),
-        roughness: 0.5,
-        sheen: 0.8,
-        sheenColor: new THREE.Color(`hsl(${hue}, 80%, 70%)`),
+        color: new THREE.Color(`hsl(${hue}, 52%, 54%)`),
+        roughness: 0.45,
+        metalness: 0,
+        sheen: 0.85,
+        sheenRoughness: 0.7,
+        sheenColor: new THREE.Color(`hsl(${hue}, 75%, 68%)`),
+        transmission: 0.2,
+        thickness: 0.35,
       }),
     [hue]
   );
@@ -427,7 +477,7 @@ function LavenderSpike({ hue }: { hue: number }) {
     <group>
       {florets.map((f, i) => (
         <mesh key={i} material={mat} position={[f.x, f.y, 0]} castShadow>
-          <sphereGeometry args={[f.s, 12, 8]} />
+          <sphereGeometry args={[f.s, 16, 12]} />
         </mesh>
       ))}
     </group>
@@ -439,11 +489,11 @@ function CameraDance({ reduceMotion }: { reduceMotion: boolean }) {
   useFrame((state) => {
     if (reduceMotion) return;
     const cam = state.camera;
-    const targetX = cursor.x * 1.5;
-    const targetY = 1.6 + cursor.y * -0.5;
-    cam.position.x += (targetX - cam.position.x) * 0.04;
-    cam.position.y += (targetY - cam.position.y) * 0.04;
-    cam.lookAt(0, 0.8, 0);
+    const targetX = cursor.x * 1.4;
+    const targetY = 1.8 + cursor.y * -0.45;
+    cam.position.x += (targetX - cam.position.x) * 0.035;
+    cam.position.y += (targetY - cam.position.y) * 0.035;
+    cam.lookAt(0, 0.85, 0);
   });
   return null;
 }
