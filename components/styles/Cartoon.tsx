@@ -1,278 +1,268 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import gsap from "gsap";
+import { useEffect, useRef, useCallback } from "react";
 import type { Flower } from "@/lib/flowers";
-import { useCursor } from "../Cursor";
 
 type Props = { flowers: Flower[]; ink: string; reduceMotion: boolean };
 
-// Wednesday — Cartoon. A field of tulips. Tap each petal to pluck it off
-// ("me quiere, no me quiere"). When all petals are gone, a heart pops out
-// from the stem and bounces. After a few seconds the tulip regrows.
+// Wednesday — Hello Kitty Garden: Kawaii aesthetic, pink polka dots, bows, and cute flowers
 export function Cartoon({ flowers, reduceMotion }: Props) {
-  return (
-    <div className="absolute inset-0 overflow-hidden">
-      <div
-        className="absolute inset-0"
-        style={{
-          background:
-            "linear-gradient(180deg, #bde6ff 0%, #d8f0c6 55%, #a8d68c 100%)",
-        }}
-      />
-      <Clouds />
-      <Grass />
-      <div className="absolute inset-0">
-        {flowers.map((f) => (
-          <Tulip key={f.id} flower={f} reduceMotion={reduceMotion} />
-        ))}
-      </div>
-    </div>
-  );
-}
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const animRef = useRef<number>(0);
 
-const PETALS = 6;
+  interface Bow { x: number; y: number; s: number; vx: number; vy: number; rot: number; vrot: number; }
+  interface Sparkle { x: number; y: number; r: number; phase: number; speed: number; }
 
-function Tulip({ flower, reduceMotion }: { flower: Flower; reduceMotion: boolean }) {
-  const wrapRef = useRef<HTMLDivElement>(null);
-  const petalRefs = useRef<(SVGGElement | null)[]>([]);
-  const heartRef = useRef<SVGGElement>(null);
-  const cursor = useCursor();
-  const [removed, setRemoved] = useState<boolean[]>(() => Array(PETALS).fill(false));
-  const [showHeart, setShowHeart] = useState(false);
+  const bowsRef = useRef<Bow[]>([]);
+  const sparklesRef = useRef<Sparkle[]>([]);
 
-  const remaining = removed.filter((r) => !r).length;
-
-  // bloom in on mount
   useEffect(() => {
-    if (reduceMotion || !wrapRef.current) return;
-    gsap.from(wrapRef.current, {
-      scale: 0,
-      transformOrigin: "50% 100%",
-      duration: 1.1,
-      ease: "elastic.out(1, 0.55)",
-      delay: (flower.id % 30) * 0.025,
-    });
-  }, [flower.id, reduceMotion]);
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
 
-  // gentle sway driven by cursor
-  useEffect(() => {
-    if (reduceMotion || !wrapRef.current) return;
-    const el = wrapRef.current;
-    const tween = gsap.to(el, {
-      rotation: "+=6",
-      transformOrigin: "50% 100%",
-      duration: 2.6 + (flower.id % 7) * 0.2,
-      yoyo: true,
-      repeat: -1,
-      ease: "sine.inOut",
-    });
-    return () => {
-      tween.kill();
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const resize = () => {
+      canvas.width = canvas.clientWidth * dpr;
+      canvas.height = canvas.clientHeight * dpr;
     };
-  }, [reduceMotion, flower.id]);
+    resize();
+    window.addEventListener("resize", resize);
 
-  // when all petals are plucked, reveal heart and schedule regrow
-  useEffect(() => {
-    if (remaining > 0) return;
-    setShowHeart(true);
-    const t = setTimeout(() => {
-      // regrow petals + hide heart
-      petalRefs.current.forEach((el) => {
-        if (el) {
-          gsap.set(el, { x: 0, y: 0, rotation: 0, opacity: 1, scale: 0 });
-          gsap.to(el, { scale: 1, duration: 0.6, ease: "elastic.out(1, 0.5)" });
+    const W = () => canvas.width / dpr;
+    const H = () => canvas.height / dpr;
+
+    // Initialize particles
+    const initParticles = () => {
+      const w = W(), h = H();
+      bowsRef.current = Array.from({ length: 15 }).map(() => ({
+        x: Math.random() * w,
+        y: Math.random() * h * 1.5 - h * 0.5,
+        s: 0.3 + Math.random() * 0.4,
+        vx: (Math.random() - 0.5) * 1.5,
+        vy: 0.8 + Math.random() * 1.5,
+        rot: Math.random() * Math.PI * 2,
+        vrot: (Math.random() - 0.5) * 0.05,
+      }));
+
+      sparklesRef.current = Array.from({ length: 40 }).map(() => ({
+        x: Math.random() * w,
+        y: Math.random() * h,
+        r: 2 + Math.random() * 4,
+        phase: Math.random() * Math.PI * 2,
+        speed: 0.02 + Math.random() * 0.04,
+      }));
+    };
+    initParticles();
+    window.addEventListener("resize", initParticles);
+
+    // Draw a cute Hello Kitty bow
+    const drawBow = (ctx: CanvasRenderingContext2D, bow: Bow) => {
+      ctx.save();
+      ctx.translate(bow.x, bow.y);
+      ctx.scale(bow.s, bow.s);
+      ctx.rotate(bow.rot);
+
+      ctx.fillStyle = "#ff0000"; // Signature red
+      ctx.strokeStyle = "#4a0000";
+      ctx.lineWidth = 4;
+      ctx.lineJoin = "round";
+
+      // Left loop
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.bezierCurveTo(-30, -30, -40, 10, -10, 15);
+      ctx.fill();
+      ctx.stroke();
+
+      // Right loop
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.bezierCurveTo(30, -30, 40, 10, 10, 15);
+      ctx.fill();
+      ctx.stroke();
+
+      // Center knot
+      ctx.beginPath();
+      ctx.arc(0, 0, 10, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      // Highlights
+      ctx.fillStyle = "rgba(255,255,255,0.6)";
+      ctx.beginPath();
+      ctx.arc(-20, -10, 3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(20, -10, 3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(-2, -3, 2, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.restore();
+    };
+
+    // Draw a cute Sanrio-style flower (rounded, bold outlines)
+    const drawKawaiiFlower = (ctx: CanvasRenderingContext2D, f: Flower, index: number, t: number) => {
+      const w = W(), h = H();
+      const px = f.x * w;
+      const py = f.y * h;
+      const s = f.scale * Math.min(w, h) * 0.05;
+      const sway = Math.sin(t * 0.002 + index) * 0.05; // very subtle sway
+
+      ctx.save();
+      ctx.translate(px, py);
+      ctx.rotate(f.rotation * (Math.PI / 180) + sway);
+
+      // Shadow
+      ctx.save();
+      ctx.scale(1, 0.3);
+      ctx.beginPath();
+      ctx.arc(0, s * 4, s * 1.5, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(200, 0, 100, 0.15)";
+      ctx.fill();
+      ctx.restore();
+
+      const petalColor = `hsl(${f.hue}, 80%, 85%)`;
+      const petalStroke = `hsl(${f.hue}, 70%, 50%)`;
+
+      // 5 rounded petals
+      ctx.fillStyle = petalColor;
+      ctx.strokeStyle = petalStroke;
+      ctx.lineWidth = s * 0.15;
+      ctx.lineJoin = "round";
+
+      for (let i = 0; i < 5; i++) {
+        ctx.save();
+        ctx.rotate((i * Math.PI * 2) / 5);
+        ctx.beginPath();
+        ctx.ellipse(0, -s * 1.2, s * 0.8, s * 1.1, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // Bright yellow center
+      ctx.beginPath();
+      ctx.arc(0, 0, s * 0.6, 0, Math.PI * 2);
+      ctx.fillStyle = "#ffde00";
+      ctx.fill();
+      ctx.strokeStyle = "#cc9900";
+      ctx.stroke();
+
+      // Cute face on the flower! (Kawaii style)
+      ctx.fillStyle = "#331100";
+      // Left eye
+      ctx.beginPath();
+      ctx.ellipse(-s * 0.2, -s * 0.1, s * 0.08, s * 0.12, 0, 0, Math.PI * 2);
+      ctx.fill();
+      // Right eye
+      ctx.beginPath();
+      ctx.ellipse(s * 0.2, -s * 0.1, s * 0.08, s * 0.12, 0, 0, Math.PI * 2);
+      ctx.fill();
+      // Little smile
+      ctx.beginPath();
+      ctx.arc(0, s * 0.15, s * 0.1, 0.1 * Math.PI, 0.9 * Math.PI);
+      ctx.lineWidth = s * 0.08;
+      ctx.strokeStyle = "#331100";
+      ctx.lineCap = "round";
+      ctx.stroke();
+
+      // Blush
+      ctx.fillStyle = "rgba(255, 100, 150, 0.6)";
+      ctx.beginPath();
+      ctx.arc(-s * 0.35, s * 0.05, s * 0.12, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(s * 0.35, s * 0.05, s * 0.12, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.restore();
+    };
+
+    let lastT = 0;
+    const tick = (now: number) => {
+      animRef.current = requestAnimationFrame(tick);
+      const dt = now - lastT;
+      lastT = now;
+      if (reduceMotion && dt < 80) return;
+
+      const w = W(), h = H();
+      ctx.clearRect(0, 0, w * dpr, h * dpr);
+      ctx.save();
+      ctx.scale(dpr, dpr);
+
+      // Scrolling Polka Dot Background
+      ctx.fillStyle = "rgba(255, 255, 255, 0.2)";
+      const dotSpacing = 60;
+      const offset = (now * 0.02) % dotSpacing;
+      for (let x = -dotSpacing; x < w + dotSpacing; x += dotSpacing) {
+        for (let y = -dotSpacing; y < h + dotSpacing; y += dotSpacing) {
+          ctx.beginPath();
+          ctx.arc(x + offset, y + offset, 4, 0, Math.PI * 2);
+          ctx.fill();
         }
-      });
-      setShowHeart(false);
-      setRemoved(Array(PETALS).fill(false));
-    }, 3800);
-    return () => clearTimeout(t);
-  }, [remaining]);
+      }
 
-  // animate heart appearance + floating
-  useEffect(() => {
-    if (!showHeart || !heartRef.current) return;
-    const el = heartRef.current;
-    gsap.fromTo(
-      el,
-      { scale: 0, y: 20 },
-      { scale: 1, y: 0, duration: 0.85, ease: "elastic.out(1, 0.5)" }
-    );
-    const float = gsap.to(el, {
-      y: -16,
-      duration: 1.4,
-      yoyo: true,
-      repeat: -1,
-      ease: "sine.inOut",
-    });
-    return () => {
-      float.kill();
+      // Sparkles
+      sparklesRef.current.forEach(s => {
+        s.phase += s.speed;
+        const alpha = (Math.sin(s.phase) + 1) * 0.5;
+        ctx.save();
+        ctx.translate(s.x, s.y);
+        ctx.scale(alpha, alpha);
+        
+        ctx.fillStyle = "#ffffff";
+        ctx.beginPath();
+        // Star shape
+        for (let i = 0; i < 4; i++) {
+          ctx.rotate(Math.PI / 2);
+          ctx.lineTo(0, -s.r * 3);
+          ctx.lineTo(s.r * 0.8, -s.r * 0.8);
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      });
+
+      // Render flowers (sorted by y)
+      const sortedFlowers = [...flowers].sort((a, b) => a.y - b.y);
+      sortedFlowers.forEach((f, i) => drawKawaiiFlower(ctx, f, i, now));
+
+      // Falling bows
+      bowsRef.current.forEach(bow => {
+        bow.x += bow.vx;
+        bow.y += bow.vy;
+        bow.rot += bow.vrot;
+
+        if (bow.y > h + 50) {
+          bow.y = -50;
+          bow.x = Math.random() * w;
+        }
+        if (bow.x < -50) bow.x = w + 50;
+        if (bow.x > w + 50) bow.x = -50;
+
+        drawBow(ctx, bow);
+      });
+
+      ctx.restore();
     };
-  }, [showHeart]);
+    animRef.current = requestAnimationFrame(tick);
 
-  const pluck = (i: number) => (e: React.PointerEvent) => {
-    e.stopPropagation();
-    if (removed[i]) return;
-    const el = petalRefs.current[i];
-    if (el) {
-      const a = (i / PETALS) * Math.PI * 2;
-      const dx = Math.cos(a) * 140 + (Math.random() - 0.5) * 80;
-      const dy = Math.sin(a) * 100 + 60 + Math.random() * 60;
-      gsap.to(el, {
-        x: dx,
-        y: dy,
-        rotation: `${(Math.random() - 0.5) * 540}`,
-        opacity: 0,
-        duration: 1.4,
-        ease: "power2.out",
-      });
-    }
-    setRemoved((prev) => {
-      const n = [...prev];
-      n[i] = true;
-      return n;
-    });
-  };
-
-  const size = 110 + flower.scale * 90;
-
-  // Subtle cursor lean (only horizontal)
-  const dx = flower.x - 0.5 - cursor.x;
-  const fall = Math.max(0, 1 - Math.abs(dx) / 0.45);
-  const lean = -cursor.x * fall * 12;
+    return () => {
+      cancelAnimationFrame(animRef.current);
+      window.removeEventListener("resize", resize);
+      window.removeEventListener("resize", initParticles);
+    };
+  }, [flowers, reduceMotion]);
 
   return (
-    <div
-      ref={wrapRef}
-      className="absolute"
-      style={{
-        left: `${flower.x * 100}%`,
-        top: `${flower.y * 100}%`,
-        width: size,
-        height: size * 1.5,
-        transform: `translate(-50%, -100%) rotate(${flower.rotation + lean}deg)`,
-        zIndex: Math.floor(flower.z * 100),
-        pointerEvents: "auto",
-      }}
-    >
-      <svg
-        viewBox="0 0 200 300"
-        width={size}
-        height={size * 1.5}
-        style={{ overflow: "visible", filter: "drop-shadow(0 4px 0 rgba(0,0,0,0.18))" }}
-        aria-label="Tulipán cartoon — toca cada pétalo"
-      >
-        {/* stem */}
-        <path
-          d="M100 300 C 96 250, 104 200, 100 150"
-          stroke="#3a8a3a"
-          strokeWidth={8}
-          fill="none"
-          strokeLinecap="round"
-        />
-        {/* leaf */}
-        <path
-          d="M100 240 C 140 230, 165 210, 158 175 C 140 195, 120 205, 100 215 Z"
-          fill="#62b56a"
-          stroke="#1f2a3a"
-          strokeWidth={3}
-        />
-
-        {/* tulip head — group of petals */}
-        <g transform="translate(100 130)">
-          {Array.from({ length: PETALS }).map((_, i) => {
-            const ang = (i / PETALS) * 360;
-            const baseHue = flower.hue;
-            const hue = (baseHue + (i % 2 ? 0 : 18)) % 360;
-            return (
-              <g
-                key={i}
-                ref={(el) => {
-                  petalRefs.current[i] = el;
-                }}
-                transform={`rotate(${ang})`}
-                onPointerDown={pluck(i)}
-                style={{ cursor: removed[i] ? "default" : "pointer" }}
-              >
-                <path
-                  d="M0 0 C -22 -12, -26 -54, 0 -72 C 26 -54, 22 -12, 0 0 Z"
-                  fill={`hsl(${hue}, 85%, 65%)`}
-                  stroke="#1f2a3a"
-                  strokeWidth={3}
-                />
-                <path
-                  d="M0 -10 C -10 -22, -12 -46, 0 -60 C 12 -46, 10 -22, 0 -10 Z"
-                  fill={`hsl(${hue}, 95%, 80%)`}
-                  opacity={0.6}
-                />
-              </g>
-            );
-          })}
-
-          {/* heart that appears when all petals are plucked */}
-          {showHeart && (
-            <g ref={heartRef} style={{ pointerEvents: "none" }}>
-              <path
-                d="M0 -10 C -32 -55, -78 -22, 0 38 C 78 -22, 32 -55, 0 -10 Z"
-                fill="#ff3b6f"
-                stroke="#1f2a3a"
-                strokeWidth={3}
-              />
-              <circle cx={-14} cy={-22} r={6} fill="#ffd1de" opacity={0.85} />
-            </g>
-          )}
-        </g>
-      </svg>
-    </div>
-  );
-}
-
-function Clouds() {
-  return (
-    <svg
-      className="absolute inset-x-0 top-0 w-full h-1/2 pointer-events-none"
-      viewBox="0 0 100 50"
-      preserveAspectRatio="none"
-    >
-      {[
-        { x: 12, y: 14, s: 1 },
-        { x: 50, y: 8, s: 1.4 },
-        { x: 82, y: 18, s: 0.9 },
-      ].map((c, i) => (
-        <g key={i} transform={`translate(${c.x} ${c.y}) scale(${c.s})`}>
-          <ellipse cx={0} cy={0} rx={6} ry={2.4} fill="white" opacity={0.9} />
-          <ellipse cx={3} cy={-1} rx={4} ry={2} fill="white" opacity={0.9} />
-          <ellipse cx={-3} cy={-1} rx={3.6} ry={2} fill="white" opacity={0.9} />
-        </g>
-      ))}
-    </svg>
-  );
-}
-
-function Grass() {
-  const blades = useMemo(
-    () =>
-      Array.from({ length: 40 }).map((_, i) => ({
-        x: (i / 40) * 100 + Math.random() * 2,
-        h: 1.5 + Math.random() * 2.5,
-        hue: 95 + ((i * 7) % 30),
-      })),
-    []
-  );
-  return (
-    <svg
-      className="absolute inset-x-0 bottom-0 w-full h-1/3 pointer-events-none"
-      viewBox="0 0 100 30"
-      preserveAspectRatio="none"
-    >
-      {blades.map((b, i) => (
-        <path
-          key={i}
-          d={`M ${b.x} 30 L ${b.x - 0.4} ${30 - b.h} L ${b.x + 0.4} ${30 - b.h} Z`}
-          fill={`hsl(${b.hue}, 55%, ${35 + (i % 4) * 6}%)`}
-        />
-      ))}
-    </svg>
+    <canvas
+      ref={canvasRef}
+      className="absolute inset-0 w-full h-full"
+      aria-label="Jardín Hello Kitty — tema kawaii con flores felices, moños rojos cayendo y destellos"
+    />
   );
 }

@@ -66,7 +66,7 @@ export function Experience({ dateKey, dayOfWeek, dateLabelEs }: Props) {
         reduceMotion={false}
       />
 
-      <div className="relative z-10 flex flex-col min-h-screen pointer-events-none">
+      <div className="relative z-40 flex flex-col min-h-screen pointer-events-none">
         <header className="px-6 sm:px-10 pt-8 flex items-center justify-between pointer-events-auto">
           <div className="font-serif text-xl tracking-wide opacity-80">
             IXOLOLI<span className="opacity-60"> · campo de poetas</span>

@@ -1,225 +1,244 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import rough from "roughjs";
 import type { Flower } from "@/lib/flowers";
-import { useCursor } from "../Cursor";
 
 type Props = { flowers: Flower[]; ink: string; reduceMotion: boolean };
 
-// Sunday — Hand-drawn line art with rough.js. Cursor wakes nearest sketch.
-export function LineArt({ flowers, ink, reduceMotion }: Props) {
-  const svgRef = useRef<SVGSVGElement>(null);
-  const cursor = useCursor();
+// Sunday — Ink Garden: Japanese sumi-e brush strokes with sakura petals
+export function LineArt({ flowers: _flowers, reduceMotion }: Props) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const animRef = useRef<number>(0);
 
   useEffect(() => {
-    const svg = svgRef.current;
-    if (!svg) return;
-    while (svg.firstChild) svg.removeChild(svg.firstChild);
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
 
-    const w = svg.clientWidth || window.innerWidth;
-    const h = svg.clientHeight || window.innerHeight;
-    svg.setAttribute("viewBox", `0 0 ${w} ${h}`);
-    const rc = rough.svg(svg);
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const resize = () => {
+      canvas.width = canvas.clientWidth * dpr;
+      canvas.height = canvas.clientHeight * dpr;
+      ctx.scale(dpr, dpr);
+    };
+    resize();
+    window.addEventListener("resize", resize);
 
-    // ground line
-    svg.appendChild(
-      rc.line(w * 0.04, h * 0.86, w * 0.96, h * 0.86, {
-        stroke: ink,
-        strokeWidth: 1,
-        roughness: 1.6,
-      })
-    );
-
-    // Distribute flowers using a jittered grid so they don't clump. The
-    // central column (0.22..0.78, y>0.66) is reserved for the poem card.
-    const COLS = 9;
-    const ROWS = 5;
-    const cells: { x: number; y: number }[] = [];
-    for (let cy = 0; cy < ROWS; cy++) {
-      for (let cx = 0; cx < COLS; cx++) {
-        const gx = (cx + 0.5) / COLS;
-        const gy = 0.18 + (cy / (ROWS - 1)) * 0.7; // 0.18..0.88
-        // skip card column for the bottom 2 rows
-        if (gx > 0.22 && gx < 0.78 && gy > 0.66) continue;
-        // skip dev button cell
-        if (gx > 0.9 && gy > 0.86) continue;
-        cells.push({ x: gx, y: gy });
-      }
+    interface Petal {
+      x: number; y: number; vx: number; vy: number; rot: number; vrot: number;
+      size: number; alpha: number; hue: number; swing: number; swingSpeed: number;
     }
-    // shuffle cells deterministically (using flower hue sum as seed-ish)
-    const cellsShuffled = cells
-      .map((c, i) => ({ c, k: ((i * 9301 + 49297) % 233280) / 233280 }))
-      .sort((a, b) => a.k - b.k)
-      .map((x) => x.c);
+    const petals: Petal[] = [];
+    const W = () => canvas.clientWidth;
+    const H = () => canvas.clientHeight;
 
-    flowers.forEach((f, i) => {
-      const slot = cellsShuffled[i % cellsShuffled.length];
-      const jitterX = ((i * 7) % 11) / 11 - 0.5;
-      const jitterY = ((i * 13) % 9) / 9 - 0.5;
-      const cellW = 1 / COLS;
-      const cellH = 0.7 / (ROWS - 1);
-      const cx = (slot.x + jitterX * cellW * 0.5) * w;
-      const cy = (slot.y + jitterY * cellH * 0.5) * h;
-      const r = 18 + f.scale * 22;
+    for (let i = 0; i < 40; i++) {
+      petals.push({
+        x: Math.random() * W(), y: -20 - Math.random() * H(),
+        vx: (Math.random() - 0.5) * 1.2, vy: 0.4 + Math.random() * 1.0,
+        rot: Math.random() * Math.PI * 2, vrot: (Math.random() - 0.5) * 0.04,
+        size: 6 + Math.random() * 10, alpha: 0.4 + Math.random() * 0.5,
+        hue: 330 + Math.random() * 30, swing: Math.random() * Math.PI * 2,
+        swingSpeed: 0.01 + Math.random() * 0.02,
+      });
+    }
 
-      const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
-      g.dataset.fx = String(cx);
-      g.dataset.fy = String(cy);
-      g.style.transformBox = "fill-box";
-      g.style.transformOrigin = "center bottom";
-      g.style.transition = "transform 380ms cubic-bezier(.2,.8,.2,1)";
-      svg.appendChild(g);
-
-      // stem
-      g.appendChild(
-        rc.line(cx, cy + r * 1.6, cx + (Math.random() - 0.5) * 6, cy + r * 0.4, {
-          stroke: ink,
-          strokeWidth: 1.4,
-          roughness: 2,
-        })
+    // Draw a sumi-e branch
+    const drawBranch = (ctx: CanvasRenderingContext2D, x: number, y: number, angle: number, length: number, depth: number, thickness: number) => {
+      if (depth <= 0 || length < 8) return;
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(angle);
+      const grad = ctx.createLinearGradient(0, 0, 0, -length);
+      grad.addColorStop(0, `rgba(30, 18, 9, ${0.85 - depth * 0.06})`);
+      grad.addColorStop(1, `rgba(50, 30, 15, ${0.55 - depth * 0.05})`);
+      ctx.strokeStyle = grad;
+      ctx.lineWidth = thickness;
+      ctx.lineCap = "round";
+      // Slightly wobbly line for brush feel
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.bezierCurveTo(
+        (Math.random() - 0.5) * 8, -length * 0.33,
+        (Math.random() - 0.5) * 8, -length * 0.66,
+        0, -length
       );
-
-      // leaf
-      g.appendChild(
-        rc.ellipse(cx + 14, cy + r * 1.1, 22, 10, {
-          stroke: ink,
-          strokeWidth: 1,
-          roughness: 2.4,
-          fill: "transparent",
-        })
-      );
-
-      // head: flower-specific sketch
-      switch (f.species) {
-        case "sunflower":
-        case "daisy": {
-          const petals = f.species === "sunflower" ? 14 : 10;
-          for (let i = 0; i < petals; i++) {
-            const a = (i / petals) * Math.PI * 2;
-            const px = cx + Math.cos(a) * (r * 0.65);
-            const py = cy - r * 0.15 + Math.sin(a) * (r * 0.65);
-            g.appendChild(
-              rc.ellipse(px, py, r * 0.55, r * 0.22, {
-                stroke: ink,
-                strokeWidth: 1,
-                roughness: 2.2,
-                fill: "transparent",
-              })
-            );
-          }
-          g.appendChild(
-            rc.circle(cx, cy - r * 0.1, r * 0.5, {
-              stroke: ink,
-              strokeWidth: 1.2,
-              roughness: 2,
-              fill: ink,
-              fillStyle: "cross-hatch",
-              hachureGap: 3,
-              fillWeight: 0.6,
-            })
-          );
-          break;
-        }
-        case "rose": {
-          for (let i = 0; i < 4; i++) {
-            g.appendChild(
-              rc.circle(cx, cy - r * 0.15, r * (1.1 - i * 0.22), {
-                stroke: ink,
-                strokeWidth: 1,
-                roughness: 2.2,
-                fill: "transparent",
-              })
-            );
-          }
-          break;
-        }
-        case "tulip": {
-          g.appendChild(
-            rc.path(
-              `M ${cx - r * 0.6} ${cy + r * 0.2} C ${cx - r * 0.8} ${cy - r * 0.7}, ${cx} ${cy - r * 1.1}, ${cx} ${cy - r * 1.1} C ${cx} ${cy - r * 1.1}, ${cx + r * 0.8} ${cy - r * 0.7}, ${cx + r * 0.6} ${cy + r * 0.2} Z`,
-              { stroke: ink, strokeWidth: 1.2, roughness: 2, fill: "transparent" }
-            )
-          );
-          break;
-        }
-        case "poppy": {
-          for (let i = 0; i < 5; i++) {
-            const a = (i / 5) * Math.PI * 2;
-            g.appendChild(
-              rc.ellipse(
-                cx + Math.cos(a) * r * 0.4,
-                cy - r * 0.15 + Math.sin(a) * r * 0.4,
-                r * 0.9,
-                r * 1.1,
-                { stroke: ink, strokeWidth: 1, roughness: 2.4, fill: "transparent" }
-              )
-            );
-          }
-          g.appendChild(rc.circle(cx, cy - r * 0.15, r * 0.35, { stroke: ink, strokeWidth: 1, roughness: 2, fill: ink, fillStyle: "solid" }));
-          break;
-        }
-        case "lily": {
-          for (let i = 0; i < 6; i++) {
-            const a = (i / 6) * Math.PI * 2;
-            g.appendChild(
-              rc.ellipse(
-                cx + Math.cos(a) * r * 0.45,
-                cy - r * 0.15 + Math.sin(a) * r * 0.45,
-                r * 0.35,
-                r * 1.1,
-                { stroke: ink, strokeWidth: 1, roughness: 2.2, fill: "transparent" }
-              )
-            );
-          }
-          break;
-        }
-        case "lavender": {
-          for (let i = 0; i < 9; i++) {
-            const yy = cy - r * 0.2 - i * 6;
-            g.appendChild(
-              rc.circle(cx + (i % 2 === 0 ? -3 : 3), yy, 6, {
-                stroke: ink,
-                strokeWidth: 0.8,
-                roughness: 2,
-                fill: "transparent",
-              })
-            );
-          }
-          break;
-        }
+      ctx.stroke();
+      // Child branches
+      const numChildren = depth > 2 ? 3 : 2;
+      for (let i = 0; i < numChildren; i++) {
+        const spread = (0.3 + depth * 0.08) * (i % 2 === 0 ? 1 : -1) * (0.7 + i * 0.3);
+        drawBranch(ctx, 0, -length, spread, length * (0.55 + Math.random() * 0.15), depth - 1, thickness * 0.62);
       }
-    });
+      ctx.restore();
+    };
 
-    if (reduceMotion) return;
+    // Draw a sakura blossom at position
+    const drawBlossom = (ctx: CanvasRenderingContext2D, x: number, y: number, size: number, alpha: number) => {
+      for (let i = 0; i < 5; i++) {
+        const angle = (i / 5) * Math.PI * 2 - Math.PI / 2;
+        const px = x + Math.cos(angle) * size * 0.55;
+        const py = y + Math.sin(angle) * size * 0.55;
+        ctx.save();
+        ctx.translate(px, py);
+        ctx.rotate(angle + Math.PI / 2);
+        ctx.beginPath();
+        ctx.ellipse(0, 0, size * 0.35, size * 0.5, 0, 0, Math.PI * 2);
+        ctx.fillStyle = `hsla(340, 70%, 88%, ${alpha * 0.8})`;
+        ctx.fill();
+        ctx.strokeStyle = `hsla(330, 55%, 72%, ${alpha * 0.5})`;
+        ctx.lineWidth = 0.5;
+        ctx.stroke();
+        ctx.restore();
+      }
+      // Center
+      ctx.beginPath();
+      ctx.arc(x, y, size * 0.18, 0, Math.PI * 2);
+      ctx.fillStyle = `hsla(350, 80%, 70%, ${alpha * 0.9})`;
+      ctx.fill();
+      // Stamens
+      for (let i = 0; i < 8; i++) {
+        const a = (i / 8) * Math.PI * 2;
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x + Math.cos(a) * size * 0.3, y + Math.sin(a) * size * 0.3);
+        ctx.strokeStyle = `hsla(350, 70%, 65%, ${alpha * 0.6})`;
+        ctx.lineWidth = 0.6;
+        ctx.stroke();
+      }
+    };
 
-    const onMove = (e: PointerEvent) => {
-      const rect = svg.getBoundingClientRect();
-      const mx = e.clientX - rect.left;
-      const my = e.clientY - rect.top;
-      Array.from(svg.children).forEach((c) => {
-        if (!(c instanceof SVGGElement) || !c.dataset.fx) return;
-        const fx = +(c.dataset.fx ?? "0");
-        const fy = +(c.dataset.fy ?? "0");
-        const dx = mx - fx;
-        const dy = my - fy;
-        const d = Math.sqrt(dx * dx + dy * dy);
-        const falloff = Math.max(0, 1 - d / 220);
-        const lean = -((mx - fx) / 220) * 18 * falloff;
-        const sc = 1 + 0.18 * falloff;
-        c.style.transform = `rotate(${lean}deg) scale(${sc})`;
+    // Draw falling petal shape
+    const drawPetal = (ctx: CanvasRenderingContext2D, p: Petal) => {
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rot);
+      ctx.beginPath();
+      ctx.ellipse(0, 0, p.size * 0.4, p.size * 0.6, 0, 0, Math.PI * 2);
+      ctx.fillStyle = `hsla(${p.hue}, 70%, 85%, ${p.alpha})`;
+      ctx.fill();
+      ctx.strokeStyle = `hsla(${p.hue - 10}, 60%, 72%, ${p.alpha * 0.5})`;
+      ctx.lineWidth = 0.5;
+      ctx.stroke();
+      // Vein line
+      ctx.beginPath();
+      ctx.moveTo(0, -p.size * 0.55);
+      ctx.lineTo(0, p.size * 0.55);
+      ctx.strokeStyle = `hsla(${p.hue - 20}, 55%, 75%, ${p.alpha * 0.4})`;
+      ctx.lineWidth = 0.4;
+      ctx.stroke();
+      ctx.restore();
+    };
+
+    // Static branch rendering (done once on resize, cached to offscreen)
+    let branchCanvas: HTMLCanvasElement | null = null;
+    const renderBranches = () => {
+      const w = W(), h = H();
+      branchCanvas = document.createElement("canvas");
+      branchCanvas.width = canvas.width;
+      branchCanvas.height = canvas.height;
+      const bctx = branchCanvas.getContext("2d")!;
+      bctx.scale(dpr, dpr);
+
+      // Paper texture wash
+      const paperGrad = bctx.createLinearGradient(0, 0, w, h);
+      paperGrad.addColorStop(0, "#faf8f2");
+      paperGrad.addColorStop(0.5, "#f5f0e8");
+      paperGrad.addColorStop(1, "#ece4d4");
+      bctx.fillStyle = paperGrad;
+      bctx.fillRect(0, 0, w, h);
+
+      // Subtle paper grain
+      for (let i = 0; i < 800; i++) {
+        const gx = Math.random() * w, gy = Math.random() * h;
+        bctx.fillStyle = `rgba(120,90,60,${0.02 + Math.random() * 0.03})`;
+        bctx.fillRect(gx, gy, 1 + Math.random() * 2, 1);
+      }
+
+      // Main branch — left side, reaching right
+      drawBranch(bctx, w * 0.08, h * 0.75, -Math.PI * 0.35, h * 0.35, 6, 8);
+      // Secondary branch — right side, reaching left
+      drawBranch(bctx, w * 0.95, h * 0.85, -Math.PI * 0.72, h * 0.28, 5, 6);
+      // Top branch — from above
+      drawBranch(bctx, w * 0.55, 0, Math.PI * 0.5 + 0.2, h * 0.22, 4, 5);
+
+      // Blossoms at branch tips (approximate positions)
+      const blossomSpots = [
+        { x: w * 0.28, y: h * 0.32, s: 18 }, { x: w * 0.45, y: h * 0.22, s: 14 },
+        { x: w * 0.62, y: h * 0.35, s: 16 }, { x: w * 0.35, y: h * 0.48, s: 12 },
+        { x: w * 0.72, y: h * 0.42, s: 20 }, { x: w * 0.55, y: h * 0.28, s: 15 },
+        { x: w * 0.20, y: h * 0.55, s: 13 }, { x: w * 0.80, y: h * 0.55, s: 17 },
+        { x: w * 0.50, y: h * 0.15, s: 12 }, { x: w * 0.15, y: h * 0.40, s: 14 },
+        { x: w * 0.88, y: h * 0.68, s: 11 }, { x: w * 0.38, y: h * 0.62, s: 10 },
+      ];
+      blossomSpots.forEach(b => drawBlossom(bctx, b.x, b.y, b.s, 0.9));
+
+      // Haiku-style thin line at bottom
+      bctx.beginPath();
+      bctx.moveTo(w * 0.15, h * 0.88);
+      bctx.lineTo(w * 0.85, h * 0.88);
+      bctx.strokeStyle = "rgba(30,18,9,0.15)";
+      bctx.lineWidth = 0.6;
+      bctx.stroke();
+
+      // Ink drop seals (red circles) — sumi-e signature
+      [[w * 0.88, h * 0.85], [w * 0.90, h * 0.80]].forEach(([sx, sy]) => {
+        bctx.beginPath();
+        bctx.arc(sx, sy, 8, 0, Math.PI * 2);
+        bctx.fillStyle = "rgba(190, 30, 20, 0.75)";
+        bctx.fill();
       });
     };
-    window.addEventListener("pointermove", onMove);
-    return () => window.removeEventListener("pointermove", onMove);
-  }, [flowers, ink, reduceMotion, cursor.active]);
+    renderBranches();
+    window.addEventListener("resize", renderBranches);
+
+    let lastT = 0;
+    const tick = (now: number) => {
+      animRef.current = requestAnimationFrame(tick);
+      const dt = now - lastT;
+      lastT = now;
+      if (reduceMotion && dt < 80) return;
+
+      const w = W(), h = H();
+      ctx.clearRect(0, 0, w, h);
+      if (branchCanvas) ctx.drawImage(branchCanvas, 0, 0, w, h);
+
+      // Animate petals
+      petals.forEach(p => {
+        p.swing += p.swingSpeed;
+        p.x += p.vx + Math.sin(p.swing) * 0.6;
+        p.y += p.vy;
+        p.rot += p.vrot;
+        if (p.y > h + 20) {
+          p.y = -20;
+          p.x = Math.random() * w;
+          p.alpha = 0.4 + Math.random() * 0.5;
+        }
+        drawPetal(ctx, p);
+      });
+    };
+    if (!reduceMotion) animRef.current = requestAnimationFrame(tick);
+    else {
+      // Static render
+      const w = W(), h = H();
+      ctx.clearRect(0, 0, w, h);
+      if (branchCanvas) ctx.drawImage(branchCanvas, 0, 0, w, h);
+      petals.forEach(p => drawPetal(ctx, p));
+    }
+
+    return () => {
+      cancelAnimationFrame(animRef.current);
+      window.removeEventListener("resize", resize);
+      window.removeEventListener("resize", renderBranches);
+    };
+  }, [reduceMotion]);
 
   return (
-    <svg
-      ref={svgRef}
+    <canvas
+      ref={canvasRef}
       className="absolute inset-0 w-full h-full"
-      preserveAspectRatio="xMidYMid slice"
-      aria-label="Campo de flores dibujado a mano"
+      aria-label="Jardín de Tinta — ramas de cerezo en sumi-e con pétalos de sakura"
     />
   );
 }

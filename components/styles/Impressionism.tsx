@@ -1,19 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import gsap from "gsap";
 import Particles, { initParticlesEngine } from "@tsparticles/react";
 import { loadSlim } from "@tsparticles/slim";
-import { loadHeartShape } from "@tsparticles/shape-heart";
-import { loadEmittersPlugin } from "@tsparticles/plugin-emitters";
 import type { Container, ISourceOptions } from "@tsparticles/engine";
 import type { Flower } from "@/lib/flowers";
 
 type Props = { flowers: Flower[]; ink: string; reduceMotion: boolean };
 
-// Friday — Sunflowers as a still-life bouquet in a vase, centered. Fixed
-// composition (no random placement) so flowers are well-spaced and aesthetic.
-// Click any flower head to burst hearts; one initial burst on mount.
+// Friday — Starry Night: Van Gogh style with animated swirls and luminous sunflowers
 export function Impressionism({ flowers: _flowers, reduceMotion }: Props) {
   const [engineReady, setEngineReady] = useState(false);
   const containerRef = useRef<Container | null>(null);
@@ -22,609 +18,287 @@ export function Impressionism({ flowers: _flowers, reduceMotion }: Props) {
   useEffect(() => {
     initParticlesEngine(async (engine) => {
       await loadSlim(engine);
-      await loadHeartShape(engine);
-      await loadEmittersPlugin(engine);
     }).then(() => setEngineReady(true));
   }, []);
 
-  const options: ISourceOptions = useMemo(
-    () => ({
-      fullScreen: { enable: false },
-      detectRetina: true,
-      fpsLimit: 60,
-      particles: {
-        number: { value: 0 },
-        shape: { type: "heart" },
-        color: { value: ["#ff5d8f", "#ff7aa2", "#ff3b6f", "#ffb6c1", "#ff9ec4"] },
-        opacity: {
-          value: { min: 0.6, max: 1 },
-          animation: { enable: true, speed: 0.8, startValue: "max", destroy: "min" },
-        },
-        size: { value: { min: 6, max: 16 } },
-        rotate: {
-          value: { min: 0, max: 360 },
-          animation: { enable: true, speed: 30, sync: false },
-        },
-        move: {
-          enable: true,
-          gravity: { enable: true, acceleration: 9 },
-          speed: { min: 8, max: 18 },
-          direction: "none",
-          outModes: { default: "destroy", top: "none" },
-          decay: 0.005,
-        },
+  const options: ISourceOptions = {
+    fullScreen: { enable: false },
+    fpsLimit: 60,
+    particles: {
+      number: { value: 120, density: { enable: true, width: 800, height: 800 } },
+      color: { value: ["#ffd54f", "#ffca28", "#ffc107", "#ffb300", "#ffffff"] },
+      shape: { type: "circle" },
+      opacity: {
+        value: { min: 0.1, max: 0.8 },
+        animation: { enable: true, speed: 1, sync: false },
       },
-      emitters: [],
-    }),
-    []
-  );
+      size: {
+        value: { min: 1, max: 4 },
+        animation: { enable: true, speed: 2, sync: false },
+      },
+      move: {
+        enable: true,
+        speed: 0.8,
+        direction: "none",
+        random: true,
+        straight: false,
+        outModes: { default: "out" },
+        attract: { enable: true, rotate: { x: 600, y: 1200 } }
+      },
+    },
+    interactivity: {
+      events: {
+        onHover: { enable: true, mode: "bubble" },
+      },
+      modes: {
+        bubble: { distance: 100, size: 8, duration: 2, opacity: 1, color: "#ffffff" },
+      },
+    },
+  };
 
-  const burstHearts = useCallback((x: number, y: number, count = 18) => {
-    const c = containerRef.current;
-    if (!c) return;
-    const colors = ["#ff5d8f", "#ff7aa2", "#ff3b6f", "#ffb6c1", "#ff9ec4"];
-    for (let i = 0; i < count; i++) {
-      const ang = Math.random() * Math.PI * 2;
-      const speed = 8 + Math.random() * 16;
-      c.particles.addParticle(
-        { x, y },
-        {
-          shape: { type: "heart" },
-          color: { value: colors[Math.floor(Math.random() * colors.length)] },
-          size: { value: 6 + Math.random() * 12 },
-          opacity: {
-            value: { min: 0.6, max: 1 },
-            animation: { enable: true, speed: 0.9, startValue: "max", destroy: "min" },
-          },
-          rotate: {
-            value: Math.random() * 360,
-            direction: Math.random() > 0.5 ? "clockwise" : "counter-clockwise",
-            animation: { enable: true, speed: 30 + Math.random() * 30, sync: false },
-          },
-          move: {
-            enable: true,
-            speed,
-            angle: { value: 0, offset: (ang * 180) / Math.PI },
-            direction: "none",
-            gravity: { enable: true, acceleration: 10 },
-            outModes: { default: "destroy" },
-            decay: 0.005,
-            straight: true,
-          },
-          life: { duration: { value: 2.4 }, count: 1 },
-        }
-      );
-    }
-  }, []);
-
-  // Initial heart shower from the vase mouth on mount, plus a slow drift.
-  useEffect(() => {
-    if (!engineReady) return;
-    const stage = stageRef.current;
-    if (!stage) return;
-    const r = stage.getBoundingClientRect();
-    const cx = r.left + r.width / 2;
-    const vy = r.top + r.height * 0.62;
-    const t1 = setTimeout(() => burstHearts(cx, vy, 28), 350);
-    const interval = setInterval(() => {
-      // gentle drifting hearts around the bouquet
-      const x = cx + (Math.random() - 0.5) * r.width * 0.5;
-      const y = r.top + r.height * (0.25 + Math.random() * 0.3);
-      const c = containerRef.current;
-      if (!c) return;
-      c.particles.addParticle(
-        { x, y },
-        {
-          shape: { type: "heart" },
-          color: { value: ["#ff7aa2", "#ffb6c1", "#ff9ec4"][Math.floor(Math.random() * 3)] },
-          size: { value: 4 + Math.random() * 6 },
-          opacity: {
-            value: { min: 0.3, max: 0.85 },
-            animation: { enable: true, speed: 0.4, startValue: "max", destroy: "min" },
-          },
-          move: {
-            enable: true,
-            speed: { min: 0.4, max: 1.4 },
-            direction: "top",
-            gravity: { enable: false },
-            outModes: { default: "destroy" },
-            decay: 0,
-            straight: false,
-          },
-          life: { duration: { value: 5 }, count: 1 },
-        }
-      );
-    }, 700);
-    return () => {
-      clearTimeout(t1);
-      clearInterval(interval);
-    };
-  }, [engineReady, burstHearts]);
-
-  // Bouquet composition — stems fan out from the vase neck.
-  // Angles in degrees from vertical (negative = left, positive = right).
-  const bouquet = useMemo(
-    () => [
-      { angle: -38, length: 0.34, headScale: 0.9, hueShift: 8 },
-      { angle: -22, length: 0.42, headScale: 1.0, hueShift: 0 },
-      { angle: -10, length: 0.5, headScale: 1.05, hueShift: -4 },
-      { angle: 0, length: 0.55, headScale: 1.15, hueShift: 0 },
-      { angle: 12, length: 0.48, headScale: 1.0, hueShift: 6 },
-      { angle: 26, length: 0.4, headScale: 0.95, hueShift: -2 },
-      { angle: 40, length: 0.32, headScale: 0.88, hueShift: 4 },
-    ],
-    []
-  );
-
-  const fallen = useMemo(
-    () => [
-      { x: -0.18, y: 0.9, rot: -22, scale: 0.7 },
-      { x: 0.22, y: 0.92, rot: 18, scale: 0.65 },
-      { x: 0.04, y: 0.94, rot: -6, scale: 0.6 },
-    ],
-    []
-  );
+  const bouquet = [
+    { angle: -45, length: 0.4, scale: 0.8, hue: 45, x: 50, y: 70 },
+    { angle: -25, length: 0.5, scale: 1.1, hue: 50, x: 50, y: 70 },
+    { angle: -5, length: 0.6, scale: 1.2, hue: 48, x: 50, y: 70 },
+    { angle: 15, length: 0.55, scale: 1.0, hue: 42, x: 50, y: 70 },
+    { angle: 35, length: 0.45, scale: 0.9, hue: 47, x: 50, y: 70 },
+  ];
 
   return (
-    <div ref={stageRef} className="absolute inset-0 overflow-hidden">
-      {/* warm meadow / studio background */}
-      <div
-        className="absolute inset-0"
-        style={{
-          background:
-            "linear-gradient(180deg, #f1d8a8 0%, #e6b97a 45%, #c89a55 78%, #6b4d28 100%)",
-        }}
-      />
-      <PaintedHaze />
+    <div ref={stageRef} className="absolute inset-0 overflow-hidden bg-[#0a192f]">
+      <StarrySky />
 
-      {/* table */}
+      {/* Table */}
       <div
-        className="absolute inset-x-0"
+        className="absolute inset-x-0 bottom-0 h-1/3"
         style={{
-          bottom: 0,
-          height: "32%",
-          background:
-            "linear-gradient(180deg, rgba(108,72,38,0.55) 0%, rgba(72,46,22,0.85) 100%)",
+          background: "linear-gradient(180deg, #1f2937 0%, #111827 100%)",
+          borderTop: "2px solid #374151"
         }}
-      />
-      <div
-        className="absolute inset-x-0"
-        style={{
-          bottom: "32%",
-          height: 2,
-          background: "rgba(0,0,0,0.25)",
-        }}
-      />
-
-      {/* Vase — centered, sitting on the table */}
-      <Vase />
-
-      {/* Stems behind the vase neck */}
-      <div className="absolute left-1/2 top-0 h-full" style={{ width: 1, transform: "translateX(-50%)" }}>
-        {/* Each stem is a curved SVG drawn from the vase neck up to where the head sits */}
-        <svg className="absolute" style={{ left: "-50vw", top: 0, width: "100vw", height: "100%", overflow: "visible" }}>
-          {bouquet.map((b, i) => (
-            <Stem key={i} angle={b.angle} length={b.length} hueShift={b.hueShift} />
-          ))}
-        </svg>
+      >
+        {/* Table texture */}
+        <div className="absolute inset-0 opacity-10 mix-blend-overlay"
+             style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'20\' height=\'20\' viewBox=\'0 0 20 20\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'%23ffffff\' fill-opacity=\'1\' fill-rule=\'evenodd\'%3E%3Ccircle cx=\'3\' cy=\'3\' r=\'3\'/%3E%3Ccircle cx=\'13\' cy=\'13\' r=\'3\'/%3E%3C/g%3E%3C/svg%3E")' }} />
       </div>
 
-      {/* Sunflower heads at end of each stem */}
-      {bouquet.map((b, i) => (
-        <SunflowerHead
-          key={i}
-          index={i}
-          angle={b.angle}
-          length={b.length}
-          headScale={b.headScale}
-          hueShift={b.hueShift}
-          reduceMotion={reduceMotion}
-          onBurst={burstHearts}
-        />
-      ))}
+      <Vase />
 
-      {/* Fallen sunflowers on the table */}
-      {fallen.map((f, i) => (
-        <FallenSunflower key={i} {...f} reduceMotion={reduceMotion} onBurst={burstHearts} />
+      {/* Stems */}
+      <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 10 }}>
+        {bouquet.map((f, i) => (
+          <Stem key={`stem-${i}`} {...f} />
+        ))}
+      </svg>
+
+      {/* Flower Heads */}
+      {bouquet.map((f, i) => (
+        <SunflowerHead key={`flower-${i}`} index={i} {...f} reduceMotion={reduceMotion} />
       ))}
 
       {engineReady && (
         <Particles
-          id="hearts"
-          className="absolute inset-0 pointer-events-none"
+          id="stars"
+          className="absolute inset-0 pointer-events-none mix-blend-screen"
           options={options}
-          particlesLoaded={async (c) => {
-            containerRef.current = c ?? null;
-          }}
+          particlesLoaded={async (c) => { containerRef.current = c ?? null; }}
         />
       )}
     </div>
   );
 }
 
-// Vase — ceramic terracotta with a soft highlight.
+function StarrySky() {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    const resize = () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    };
+    resize();
+    window.addEventListener("resize", resize);
+
+    // Draw Van Gogh style swirls
+    const drawSwirls = () => {
+      const w = canvas.width, h = canvas.height;
+      ctx.clearRect(0, 0, w, h);
+      
+      const drawDash = (x: number, y: number, angle: number, color: string, length = 15) => {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(angle);
+        ctx.beginPath();
+        ctx.moveTo(-length/2, 0);
+        ctx.bezierCurveTo(-length/4, -2, length/4, 2, length/2, 0);
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2 + Math.random();
+        ctx.lineCap = "round";
+        ctx.stroke();
+        ctx.restore();
+      };
+
+      // Draw large spirals
+      const spirals = [
+        { cx: w * 0.3, cy: h * 0.3, r: Math.min(w, h) * 0.25 },
+        { cx: w * 0.7, cy: h * 0.2, r: Math.min(w, h) * 0.2 },
+        { cx: w * 0.5, cy: h * 0.5, r: Math.min(w, h) * 0.3 },
+      ];
+
+      const colors = ['#1565c0', '#1976d2', '#2196f3', '#4fc3f7', '#0d47a1', '#ffffff', '#ffd54f'];
+
+      spirals.forEach(s => {
+        for(let r = 10; r < s.r; r += 12) {
+          const numDashes = Math.floor((2 * Math.PI * r) / 20);
+          for(let i=0; i<numDashes; i++) {
+             const angle = (i / numDashes) * Math.PI * 2;
+             const x = s.cx + Math.cos(angle) * r;
+             const y = s.cy + Math.sin(angle) * r;
+             // Add spiral distortion
+             const spiralAngle = angle + (r / s.r) * Math.PI;
+             drawDash(x, y, spiralAngle + Math.PI/2, colors[Math.floor(Math.random() * colors.length)]);
+          }
+        }
+      });
+      
+      // Fill background with horizontal-ish dashes
+      for(let i=0; i<2000; i++) {
+         const x = Math.random() * w;
+         const y = Math.random() * h;
+         drawDash(x, y, (Math.random() - 0.5) * 0.2, colors[Math.floor(Math.random() * 5)]);
+      }
+    };
+    drawSwirls();
+    return () => window.removeEventListener("resize", resize);
+  }, []);
+  return <canvas ref={canvasRef} className="absolute inset-0 opacity-40 mix-blend-screen" />;
+}
+
 function Vase() {
   return (
-    <svg
-      className="absolute"
-      viewBox="0 0 200 280"
-      style={{
-        left: "50%",
-        bottom: "12%",
-        width: "min(28vw, 240px)",
-        height: "min(40vh, 340px)",
-        transform: "translateX(-50%)",
-        overflow: "visible",
-        filter: "drop-shadow(0 8px 18px rgba(0,0,0,0.4))",
-      }}
-      aria-label="Jarrón con girasoles"
-    >
-      <defs>
-        <linearGradient id="vaseGrad" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0" stopColor="#c95a2c" />
-          <stop offset="0.45" stopColor="#e08148" />
-          <stop offset="1" stopColor="#7e3814" />
-        </linearGradient>
-        <linearGradient id="vaseGradTop" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#b14a22" />
-          <stop offset="1" stopColor="#e07a3c" />
-        </linearGradient>
-      </defs>
-      {/* body */}
-      <path
-        d="M40 90 C 30 130, 30 180, 40 230 C 60 260, 140 260, 160 230 C 170 180, 170 130, 160 90 Z"
-        fill="url(#vaseGrad)"
-        stroke="#3a1a08"
-        strokeWidth={2}
-      />
-      {/* neck */}
-      <path
-        d="M60 80 L 60 95 L 140 95 L 140 80 Z"
-        fill="url(#vaseGradTop)"
-        stroke="#3a1a08"
-        strokeWidth={2}
-      />
-      {/* mouth (ellipse top) */}
-      <ellipse cx={100} cy={80} rx={42} ry={8} fill="#5a1f08" stroke="#2a0d04" strokeWidth={2} />
-      {/* highlight */}
-      <path d="M55 110 C 50 160, 50 210, 60 240" stroke="rgba(255,220,180,0.4)" strokeWidth={6} fill="none" />
-      {/* decorative band */}
-      <path d="M48 150 L 152 150" stroke="#3a1a08" strokeWidth={1.6} opacity={0.7} />
-      <path d="M52 158 C 80 150, 120 162, 148 156" stroke="#fff5e0" strokeWidth={1} opacity={0.4} fill="none" />
-    </svg>
+    <div className="absolute left-1/2 bottom-[10%] -translate-x-1/2 w-48 h-64 z-20"
+         style={{ filter: "drop-shadow(10px 20px 15px rgba(0,0,0,0.6))" }}>
+      <svg viewBox="0 0 100 150" className="w-full h-full">
+         <defs>
+            <linearGradient id="vase" x1="0%" y1="0%" x2="100%" y2="0%">
+               <stop offset="0%" stopColor="#d97706" />
+               <stop offset="30%" stopColor="#f59e0b" />
+               <stop offset="80%" stopColor="#b45309" />
+               <stop offset="100%" stopColor="#78350f" />
+            </linearGradient>
+            <filter id="rough">
+              <feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="3" result="noise" />
+              <feColorMatrix type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 0.15 0" in="noise" result="coloredNoise" />
+              <feComposite operator="in" in="coloredNoise" in2="SourceGraphic" result="texture" />
+              <feBlend mode="multiply" in="texture" in2="SourceGraphic" />
+            </filter>
+         </defs>
+         <path d="M 30 10 L 70 10 C 75 10 75 15 70 20 C 65 25 60 40 85 75 C 105 105 95 140 80 145 C 65 150 35 150 20 145 C 5 140 -5 105 15 75 C 40 40 35 25 30 20 C 25 15 25 10 30 10 Z"
+               fill="url(#vase)" filter="url(#rough)" stroke="#451a03" strokeWidth="2" />
+         <path d="M 30 10 L 70 10" stroke="#fcd34d" strokeWidth="3" fill="none" opacity="0.6" />
+         {/* Painterly highlights */}
+         <path d="M 25 80 C 15 110 25 135 40 142" stroke="#fde68a" strokeWidth="4" strokeLinecap="round" fill="none" opacity="0.4" style={{filter: 'blur(1px)'}} />
+      </svg>
+    </div>
   );
 }
 
-// A single curved stem from vase neck to head position.
-function Stem({ angle, length, hueShift }: { angle: number; length: number; hueShift: number }) {
-  // The stem goes from (50%, 75%) of the screen (vase neck) to (50% + dx, 75% - dy)
-  // in viewport units. Use SVG percent coords.
-  const rad = (angle * Math.PI) / 180;
-  const dx = Math.sin(rad) * length;
-  const dy = Math.cos(rad) * length;
-  const x1 = 50;
-  const y1 = 75;
-  const x2 = x1 + dx * 100;
-  const y2 = y1 - dy * 100;
-  // control point bows the stem outward slightly
-  const bowX = (x1 + x2) / 2 + Math.sin(rad) * 4;
-  const bowY = (y1 + y2) / 2 + 6;
+function Stem({ angle, length, x, y }: { angle: number; length: number; x: number; y: number }) {
+  const endX = x + Math.sin((angle * Math.PI) / 180) * length * 50;
+  const endY = y - Math.cos((angle * Math.PI) / 180) * length * 50;
   return (
     <path
-      d={`M ${x1}% ${y1}% Q ${bowX}% ${bowY}% ${x2}% ${y2}%`}
-      stroke={`hsl(${85 + hueShift}, 50%, 32%)`}
-      strokeWidth={4}
+      d={`M ${x}% ${y}% Q ${(x + endX)/2 + 5}% ${(y + endY)/2}% ${endX}% ${endY}%`}
+      stroke="#166534"
+      strokeWidth="8"
       fill="none"
       strokeLinecap="round"
-      filter="drop-shadow(0 2px 2px rgba(0,0,0,0.3))"
+      style={{ filter: "drop-shadow(2px 2px 4px rgba(0,0,0,0.5))" }}
     />
   );
 }
 
-function SunflowerHead({
-  index,
-  angle,
-  length,
-  headScale,
-  hueShift,
-  reduceMotion,
-  onBurst,
-}: {
-  index: number;
-  angle: number;
-  length: number;
-  headScale: number;
-  hueShift: number;
-  reduceMotion: boolean;
-  onBurst: (x: number, y: number, count?: number) => void;
-}) {
-  const wrapRef = useRef<HTMLDivElement>(null);
-  const headRef = useRef<SVGGElement>(null);
-  const petalsRef = useRef<SVGGElement>(null);
-  const [busy, setBusy] = useState(false);
-
-  // Position the head at the end of the stem
-  const rad = (angle * Math.PI) / 180;
-  const dx = Math.sin(rad) * length;
-  const dy = Math.cos(rad) * length;
-  const left = 50 + dx * 100;
-  const top = 75 - dy * 100;
+function SunflowerHead({ index, angle, length, scale, hue, reduceMotion, x, y }: any) {
+  const headRef = useRef<HTMLDivElement>(null);
+  
+  const endX = x + Math.sin((angle * Math.PI) / 180) * length * 50;
+  const endY = y - Math.cos((angle * Math.PI) / 180) * length * 50;
 
   useEffect(() => {
     if (!headRef.current || reduceMotion) return;
-    gsap.from(headRef.current, {
-      scale: 0,
-      transformOrigin: "50% 50%",
-      duration: 1.1,
-      ease: "elastic.out(1, 0.55)",
-      delay: 0.2 + index * 0.08,
-    });
-  }, [reduceMotion, index]);
-
-  useEffect(() => {
-    if (!wrapRef.current || reduceMotion) return;
-    const tween = gsap.to(wrapRef.current, {
-      rotation: `+=${(index % 2 === 0 ? 1 : -1) * 3}`,
-      transformOrigin: "50% 100%",
-      duration: 2.6 + index * 0.22,
-      yoyo: true,
-      repeat: -1,
-      ease: "sine.inOut",
-    });
-    return () => {
-      tween.kill();
-    };
-  }, [reduceMotion, index]);
-
-  const explode = (e: React.PointerEvent) => {
-    if (busy) return;
-    setBusy(true);
-    const rect = wrapRef.current?.getBoundingClientRect();
-    const cx = rect ? rect.left + rect.width / 2 : e.clientX;
-    const cy = rect ? rect.top + rect.height / 2 : e.clientY;
-    onBurst(cx, cy, 22);
-
-    if (headRef.current && petalsRef.current) {
-      gsap
-        .timeline({
-          onComplete: () => {
-            gsap.delayedCall(1.4 + Math.random() * 0.6, () => {
-              if (!headRef.current || !petalsRef.current) return;
-              gsap.set(petalsRef.current.children, { rotation: 0, x: 0, y: 0, opacity: 1 });
-              gsap.fromTo(
-                headRef.current,
-                { scale: 0 },
-                { scale: 1, duration: 1.0, ease: "elastic.out(1, 0.5)", onComplete: () => setBusy(false) }
-              );
-            });
-          },
-        })
-        .to(headRef.current, { scale: 1.3, duration: 0.18, ease: "power3.out" })
-        .to(headRef.current, { scale: 0, duration: 0.35, ease: "power2.in" }, "+=0.05");
-
-      Array.from(petalsRef.current.children).forEach((el) => {
-        const ang2 = Math.random() * Math.PI * 2;
-        const dist = 50 + Math.random() * 70;
-        gsap.to(el, {
-          x: Math.cos(ang2) * dist,
-          y: Math.sin(ang2) * dist + 50,
-          rotation: (Math.random() - 0.5) * 540,
-          opacity: 0,
-          duration: 1.1,
-          ease: "power2.out",
-        });
-      });
-    }
-  };
-
-  const size = 110 * headScale;
-
-  return (
-    <div
-      ref={wrapRef}
-      className="absolute"
-      style={{
-        left: `${left}%`,
-        top: `${top}%`,
-        width: size,
-        height: size,
-        transform: `translate(-50%, -50%) rotate(${angle * 0.6}deg)`,
-      }}
-    >
-      <FlowerHeadSVG
-        size={size}
-        hueShift={hueShift}
-        headRef={headRef}
-        petalsRef={petalsRef}
-        onPointerDown={explode}
-      />
-    </div>
-  );
-}
-
-function FallenSunflower({
-  x,
-  y,
-  rot,
-  scale,
-  reduceMotion,
-  onBurst,
-}: {
-  x: number;
-  y: number;
-  rot: number;
-  scale: number;
-  reduceMotion: boolean;
-  onBurst: (x: number, y: number, count?: number) => void;
-}) {
-  const wrapRef = useRef<HTMLDivElement>(null);
-  const headRef = useRef<SVGGElement>(null);
-  const petalsRef = useRef<SVGGElement>(null);
-  const [busy, setBusy] = useState(false);
-
-  useEffect(() => {
-    if (!headRef.current || reduceMotion) return;
-    gsap.from(headRef.current, {
-      scale: 0,
-      duration: 0.9,
-      ease: "elastic.out(1, 0.5)",
-      delay: 0.5,
-    });
-  }, [reduceMotion]);
-
-  const explode = (e: React.PointerEvent) => {
-    if (busy) return;
-    setBusy(true);
-    const rect = wrapRef.current?.getBoundingClientRect();
-    const cx = rect ? rect.left + rect.width / 2 : e.clientX;
-    const cy = rect ? rect.top + rect.height / 2 : e.clientY;
-    onBurst(cx, cy, 16);
-    if (headRef.current && petalsRef.current) {
-      gsap.to(headRef.current, {
-        scale: 0,
-        duration: 0.4,
-        ease: "power2.in",
-        onComplete: () => {
-          gsap.delayedCall(1.6, () => {
-            if (!headRef.current || !petalsRef.current) return;
-            gsap.set(petalsRef.current.children, { rotation: 0, x: 0, y: 0, opacity: 1 });
-            gsap.to(headRef.current, {
-              scale: 1,
-              duration: 0.9,
-              ease: "elastic.out(1, 0.5)",
-              onComplete: () => setBusy(false),
-            });
-          });
-        },
-      });
-    }
-  };
-
-  const size = 100 * scale;
-
-  return (
-    <div
-      ref={wrapRef}
-      className="absolute"
-      style={{
-        left: `${50 + x * 30}%`,
-        top: `${y * 100}%`,
-        width: size,
-        height: size,
-        transform: `translate(-50%, -50%) rotate(${rot}deg)`,
-      }}
-    >
-      <FlowerHeadSVG
-        size={size}
-        hueShift={0}
-        headRef={headRef}
-        petalsRef={petalsRef}
-        onPointerDown={explode}
-      />
-    </div>
-  );
-}
-
-// Shared sunflower head SVG.
-function FlowerHeadSVG({
-  size,
-  hueShift,
-  headRef,
-  petalsRef,
-  onPointerDown,
-}: {
-  size: number;
-  hueShift: number;
-  headRef: React.RefObject<SVGGElement>;
-  petalsRef: React.RefObject<SVGGElement>;
-  onPointerDown: (e: React.PointerEvent) => void;
-}) {
-  return (
-    <svg
-      viewBox="0 0 100 100"
-      width={size}
-      height={size}
-      onPointerDown={onPointerDown}
-      style={{
-        overflow: "visible",
-        cursor: "pointer",
-        filter: "drop-shadow(0 6px 10px rgba(0,0,0,0.35))",
-      }}
-      aria-label="Girasol — tócalo para que estalle en corazones"
-    >
-      <g ref={headRef} transform="translate(50 50)">
-        <g ref={petalsRef}>
-          {Array.from({ length: 18 }).map((_, i) => {
-            const a = (i / 18) * 360;
-            const len = 22 + (i % 2) * 2;
-            return (
-              <g key={i} transform={`rotate(${a})`}>
-                <ellipse
-                  cx={0}
-                  cy={-len * 0.55}
-                  rx={5}
-                  ry={len * 0.55}
-                  fill={`hsl(${42 + hueShift + (i % 3)}, 95%, ${56 + (i % 2) * 6}%)`}
-                />
-                <ellipse cx={0} cy={-len * 0.55} rx={2.5} ry={len * 0.5} fill={`hsl(${30 + hueShift}, 95%, 50%)`} opacity={0.55} />
-              </g>
-            );
-          })}
-          {Array.from({ length: 12 }).map((_, i) => {
-            const a = (i / 12) * 360 + 11;
-            return (
-              <g key={"i" + i} transform={`rotate(${a})`}>
-                <ellipse cx={0} cy={-12} rx={4} ry={10} fill={`hsl(${38 + hueShift}, 100%, 64%)`} />
-              </g>
-            );
-          })}
-        </g>
-        <circle r={11} fill="#3a230f" />
-        {Array.from({ length: 30 }).map((_, i) => {
-          const a = (i / 30) * Math.PI * 2;
-          const r = 6 + (i % 2) * 1.5;
-          return <circle key={i} cx={Math.cos(a) * r} cy={Math.sin(a) * r} r={1.2} fill="#1a0d04" />;
-        })}
-        <circle r={11} fill="none" stroke="#5a3a18" strokeWidth={1} />
-      </g>
-    </svg>
-  );
-}
-
-function PaintedHaze() {
-  const ref = useRef<HTMLCanvasElement>(null);
-  useEffect(() => {
-    const c = ref.current;
-    if (!c) return;
-    const ctx = c.getContext("2d");
-    if (!ctx) return;
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    const draw = () => {
-      c.width = c.clientWidth * dpr;
-      c.height = c.clientHeight * dpr;
-      const w = c.width;
-      const h = c.height;
-      ctx.clearRect(0, 0, w, h);
-      for (let i = 0; i < 1100; i++) {
-        const x = (((i * 9301 + 49297) % 233280) / 233280) * w;
-        const y = (((i * 6481 + 53711) % 233280) / 233280) * h;
-        const isSky = y / h < 0.5;
-        const hue = isSky ? 35 + ((i * 7) % 25) : 30 + ((i * 11) % 30);
-        const sat = isSky ? 55 : 55;
-        const light = isSky ? 78 : 38;
-        ctx.save();
-        ctx.translate(x, y);
-        ctx.rotate(((i * 13) % 360) * (Math.PI / 180));
-        ctx.fillStyle = `hsla(${hue}, ${sat}%, ${light}%, 0.5)`;
-        ctx.beginPath();
-        ctx.ellipse(0, 0, (4 + ((i * 5) % 6)) * dpr, 1.4 * dpr, 0, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
+    gsap.fromTo(headRef.current, 
+      { rotation: angle * 0.5 - 5 },
+      { 
+        rotation: angle * 0.5 + 5, 
+        duration: 3 + Math.random(), 
+        yoyo: true, 
+        repeat: -1, 
+        ease: "sine.inOut",
+        delay: index * 0.2
       }
-    };
-    draw();
-    window.addEventListener("resize", draw);
-    return () => window.removeEventListener("resize", draw);
-  }, []);
-  return <canvas ref={ref} className="absolute inset-0 w-full h-full" />;
+    );
+  }, [reduceMotion, angle, index]);
+
+  return (
+    <div
+      ref={headRef}
+      className="absolute z-30"
+      style={{
+        left: `${endX}%`,
+        top: `${endY}%`,
+        transform: `translate(-50%, -50%) scale(${scale})`,
+        filter: "drop-shadow(5px 10px 8px rgba(0,0,0,0.5))"
+      }}
+    >
+      <svg width="160" height="160" viewBox="0 0 160 160">
+        <defs>
+          <filter id="glow">
+             <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+             <feMerge>
+                <feMergeNode in="coloredBlur"/>
+                <feMergeNode in="SourceGraphic"/>
+             </feMerge>
+          </filter>
+        </defs>
+        <g transform="translate(80, 80)">
+           {/* Petals */}
+           {Array.from({ length: 24 }).map((_, i) => {
+              const a = (i / 24) * 360;
+              const len = 35 + Math.random() * 15;
+              const color = i % 3 === 0 ? "#f59e0b" : i % 2 === 0 ? "#fbbf24" : "#fcd34d";
+              return (
+                <path
+                  key={i}
+                  d={`M 0 0 Q 15 ${-len/2} 0 ${-len} Q -15 ${-len/2} 0 0`}
+                  fill={color}
+                  stroke="#b45309"
+                  strokeWidth="1"
+                  transform={`rotate(${a})`}
+                  style={{ filter: "url(#glow)" }}
+                />
+              );
+           })}
+           {/* Center */}
+           <circle r="22" fill="#451a03" />
+           <circle r="18" fill="#78350f" />
+           {/* Seeds */}
+           {Array.from({ length: 40 }).map((_, i) => {
+             const r = Math.random() * 16;
+             const a = Math.random() * Math.PI * 2;
+             return (
+               <circle 
+                 key={`seed-${i}`}
+                 cx={Math.cos(a) * r} 
+                 cy={Math.sin(a) * r} 
+                 r="1.5" 
+                 fill={Math.random() > 0.5 ? "#b45309" : "#fbbf24"} 
+               />
+             );
+           })}
+        </g>
+      </svg>
+    </div>
+  );
 }

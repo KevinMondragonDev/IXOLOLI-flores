@@ -1,499 +1,352 @@
 "use client";
 
-import { useMemo, useRef } from "react";
-import { Canvas, useFrame } from "@react-three/fiber";
-import { Float, OrbitControls, Sparkles, Cloud, ContactShadows, Environment, useGLTF } from "@react-three/drei";
-import { EffectComposer, Bloom, Vignette, DepthOfField, SSAO } from "@react-three/postprocessing";
-import * as THREE from "three";
+import { useEffect, useRef } from "react";
 import type { Flower } from "@/lib/flowers";
-
-type Species = Flower["species"];
-import { useCursor } from "../Cursor";
 
 type Props = { flowers: Flower[]; ink: string; reduceMotion: boolean };
 
-// Thursday — Realistic 3D garden. Enhanced PBR materials with advanced lighting,
-// subsurface scattering simulation, and refined procedural geometries to approach
-// the visual quality of high-quality GLTF models.
+// Thursday — Lantern Garden: Chinese romantic theme (Qixi festival / Mid-Autumn)
+// Features floating lanterns, a full moon, bamboo silhouettes, and glowing lotus flowers
 export function Realistic({ flowers, reduceMotion }: Props) {
-  return (
-    <div className="absolute inset-0">
-      <Canvas
-        shadows
-        dpr={[1, 2]}
-        camera={{ position: [0, 1.8, 5.5], fov: 40 }}
-        gl={{ 
-          antialias: true, 
-          alpha: false, 
-          toneMapping: THREE.ACESFilmicToneMapping, 
-          toneMappingExposure: 1.2,
-          outputColorSpace: THREE.SRGBColorSpace
-        }}
-      >
-        <color attach="background" args={["#f5e6d4"]} />
-        <fog attach="fog" args={["#e8d4c0", 5, 18]} />
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const animRef = useRef<number>(0);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const resize = () => {
+      canvas.width = canvas.clientWidth * dpr;
+      canvas.height = canvas.clientHeight * dpr;
+    };
+    resize();
+    window.addEventListener("resize", resize);
+
+    const W = () => canvas.width / dpr;
+    const H = () => canvas.height / dpr;
+
+    interface Lantern { x: number; y: number; s: number; vx: number; vy: number; phase: number; }
+    interface Particle { x: number; y: number; r: number; vx: number; vy: number; alpha: number; }
+
+    const lanterns: Lantern[] = [];
+    const particles: Particle[] = [];
+
+    const initScene = () => {
+      lanterns.length = 0;
+      particles.length = 0;
+      const w = W(), h = H();
+      
+      // Floating lanterns
+      for (let i = 0; i < 25; i++) {
+        lanterns.push({
+          x: Math.random() * w,
+          y: Math.random() * h * 1.5,
+          s: 0.3 + Math.random() * 0.7,
+          vx: (Math.random() - 0.5) * 0.2,
+          vy: -0.2 - Math.random() * 0.6,
+          phase: Math.random() * Math.PI * 2,
+        });
+      }
+
+      // Fireflies / light particles
+      for (let i = 0; i < 60; i++) {
+        particles.push({
+          x: Math.random() * w,
+          y: Math.random() * h,
+          r: 1 + Math.random() * 2,
+          vx: (Math.random() - 0.5) * 0.5,
+          vy: (Math.random() - 0.5) * 0.5 - 0.2,
+          alpha: Math.random(),
+        });
+      }
+    };
+    initScene();
+    window.addEventListener("resize", initScene);
+
+    const drawMoon = (ctx: CanvasRenderingContext2D) => {
+      const w = W(), h = H();
+      const mx = w * 0.8;
+      const my = h * 0.25;
+      const mr = Math.min(w, h) * 0.15;
+
+      ctx.save();
+      // Moon glow
+      const glow = ctx.createRadialGradient(mx, my, mr * 0.8, mx, my, mr * 3);
+      glow.addColorStop(0, "rgba(255, 235, 180, 0.4)");
+      glow.addColorStop(0.5, "rgba(255, 210, 120, 0.1)");
+      glow.addColorStop(1, "rgba(255, 180, 80, 0)");
+      ctx.fillStyle = glow;
+      ctx.fillRect(0, 0, w, h);
+
+      // Moon body
+      ctx.beginPath();
+      ctx.arc(mx, my, mr, 0, Math.PI * 2);
+      ctx.fillStyle = "#fff4d4";
+      ctx.fill();
+      
+      // Subtle craters (using low opacity overlays)
+      ctx.beginPath();
+      ctx.arc(mx - mr * 0.2, my + mr * 0.2, mr * 0.4, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(0,0,0,0.03)";
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(mx + mr * 0.3, my - mr * 0.1, mr * 0.25, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(0,0,0,0.02)";
+      ctx.fill();
+
+      ctx.restore();
+    };
+
+    const drawLantern = (ctx: CanvasRenderingContext2D, l: Lantern, t: number) => {
+      const sway = Math.sin(t * 0.001 + l.phase) * 5 * l.s;
+      ctx.save();
+      ctx.translate(l.x + sway, l.y);
+      ctx.scale(l.s, l.s);
+
+      // Lantern glow
+      const lg = ctx.createRadialGradient(0, 0, 0, 0, 0, 40);
+      lg.addColorStop(0, "rgba(255, 150, 50, 0.6)");
+      lg.addColorStop(1, "rgba(255, 50, 0, 0)");
+      ctx.fillStyle = lg;
+      ctx.beginPath();
+      ctx.arc(0, 0, 40, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Paper body
+      const grad = ctx.createLinearGradient(-12, 0, 12, 0);
+      grad.addColorStop(0, "#c62828");
+      grad.addColorStop(0.5, "#ef5350");
+      grad.addColorStop(1, "#b71c1c");
+      
+      ctx.beginPath();
+      ctx.moveTo(-10, -15);
+      ctx.quadraticCurveTo(-15, 0, -10, 15);
+      ctx.lineTo(10, 15);
+      ctx.quadraticCurveTo(15, 0, 10, -15);
+      ctx.closePath();
+      ctx.fillStyle = grad;
+      ctx.fill();
+
+      // Top and bottom wooden rims
+      ctx.fillStyle = "#3e2723";
+      ctx.fillRect(-8, -17, 16, 2);
+      ctx.fillRect(-8, 15, 16, 2);
+
+      // Tassel
+      ctx.beginPath();
+      ctx.moveTo(0, 17);
+      ctx.lineTo(0, 22);
+      ctx.strokeStyle = "#ffb300";
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(0, 22);
+      ctx.lineTo(-4, 32);
+      ctx.moveTo(0, 22);
+      ctx.lineTo(0, 34);
+      ctx.moveTo(0, 22);
+      ctx.lineTo(4, 32);
+      ctx.strokeStyle = "#d84315";
+      ctx.stroke();
+
+      // Ribs
+      ctx.beginPath();
+      ctx.moveTo(-4, -15);
+      ctx.quadraticCurveTo(-6, 0, -4, 15);
+      ctx.moveTo(4, -15);
+      ctx.quadraticCurveTo(6, 0, 4, 15);
+      ctx.moveTo(0, -15);
+      ctx.lineTo(0, 15);
+      ctx.strokeStyle = "rgba(0,0,0,0.15)";
+      ctx.stroke();
+
+      ctx.restore();
+    };
+
+    const drawBamboo = (ctx: CanvasRenderingContext2D, t: number) => {
+      const w = W(), h = H();
+      ctx.save();
+      // Silhouettes of bamboo leaves on the left and right
+      ctx.fillStyle = "#150202"; // very dark crimson/black
+      
+      const drawLeaf = (x: number, y: number, angle: number, scale: number) => {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(angle + Math.sin(t * 0.0005 + x) * 0.05);
+        ctx.scale(scale, scale);
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.quadraticCurveTo(20, -10, 40, 0);
+        ctx.quadraticCurveTo(20, 10, 0, 0);
+        ctx.fill();
+        ctx.restore();
+      };
+
+      // Left branch
+      ctx.beginPath();
+      ctx.moveTo(-10, h * 0.2);
+      ctx.quadraticCurveTo(w * 0.1, h * 0.15, w * 0.2, h * 0.05);
+      ctx.lineWidth = 4;
+      ctx.strokeStyle = "#150202";
+      ctx.stroke();
+      
+      drawLeaf(w * 0.05, h * 0.18, -Math.PI * 0.1, 1.2);
+      drawLeaf(w * 0.12, h * 0.12, 0, 1.0);
+      drawLeaf(w * 0.18, h * 0.08, Math.PI * 0.1, 0.8);
+
+      // Right branch
+      ctx.beginPath();
+      ctx.moveTo(w + 10, h * 0.4);
+      ctx.quadraticCurveTo(w * 0.85, h * 0.3, w * 0.8, h * 0.2);
+      ctx.stroke();
+
+      drawLeaf(w * 0.9, h * 0.35, Math.PI, 1.5);
+      drawLeaf(w * 0.85, h * 0.28, Math.PI * 1.1, 1.1);
+      drawLeaf(w * 0.82, h * 0.22, Math.PI * 1.2, 0.9);
+
+      ctx.restore();
+    };
+
+    const drawLotus = (ctx: CanvasRenderingContext2D, f: Flower, t: number, index: number) => {
+      const w = W(), h = H();
+      const px = f.x * w;
+      // Map flowers to the bottom area (like a dark lake/pond)
+      const py = h * 0.75 + (f.y * h * 0.25); 
+      const s = f.scale * Math.min(w, h) * 0.06;
+      const sway = Math.sin(t * 0.001 + index) * 2;
+
+      ctx.save();
+      ctx.translate(px, py);
+
+      // Water ripple shadow
+      ctx.save();
+      ctx.scale(1, 0.2);
+      ctx.beginPath();
+      ctx.arc(0, 0, s * 1.5, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(255, 100, 100, ${0.1 + Math.sin(t * 0.002 + index) * 0.05})`;
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(0, 0, s * 2.5, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(255, 200, 200, ${0.05 + Math.sin(t * 0.001 + index) * 0.05})`;
+      ctx.stroke();
+      ctx.restore();
+
+      ctx.rotate((sway * Math.PI) / 180);
+
+      // Glowing aura
+      const aura = ctx.createRadialGradient(0, -s*0.5, 0, 0, -s*0.5, s*1.2);
+      aura.addColorStop(0, "rgba(255, 50, 100, 0.3)");
+      aura.addColorStop(1, "rgba(255, 0, 50, 0)");
+      ctx.fillStyle = aura;
+      ctx.beginPath();
+      ctx.arc(0, -s*0.5, s*1.2, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Lotus petals
+      const hue = f.hue % 40 + 330; // map hue to pinks/reds/magentas
+      for (let i = 0; i < 8; i++) {
+        const pa = (i / 8) * Math.PI; // semi-circle
+        ctx.save();
+        // Fan out from -PI/2
+        ctx.rotate(-Math.PI / 2 + pa - Math.PI / 2 + Math.PI/8);
+        const pg = ctx.createLinearGradient(0, 0, 0, -s * 1.2);
+        pg.addColorStop(0, `hsl(${hue}, 90%, 85%)`);
+        pg.addColorStop(1, `hsl(${hue - 15}, 85%, 60%)`);
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.quadraticCurveTo(-s * 0.4, -s * 0.6, 0, -s * 1.2);
+        ctx.quadraticCurveTo(s * 0.4, -s * 0.6, 0, 0);
+        ctx.fillStyle = pg;
+        ctx.fill();
+        ctx.strokeStyle = `hsl(${hue}, 100%, 90%)`;
+        ctx.lineWidth = 0.5;
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // Center light
+      ctx.beginPath();
+      ctx.arc(0, -s*0.2, s*0.15, 0, Math.PI*2);
+      ctx.fillStyle = "#fffacd";
+      ctx.fill();
+
+      ctx.restore();
+    };
+
+    let lastT = 0;
+    const tick = (now: number) => {
+      animRef.current = requestAnimationFrame(tick);
+      const dt = now - lastT;
+      lastT = now;
+      if (reduceMotion && dt < 80) return;
+
+      const w = W(), h = H();
+      ctx.clearRect(0, 0, w * dpr, h * dpr);
+      ctx.save();
+      ctx.scale(dpr, dpr);
+
+      drawMoon(ctx);
+
+      // Water reflection at the bottom
+      const water = ctx.createLinearGradient(0, h * 0.7, 0, h);
+      water.addColorStop(0, "rgba(20, 2, 2, 0)");
+      water.addColorStop(0.2, "rgba(40, 5, 5, 0.4)");
+      water.addColorStop(1, "rgba(10, 0, 0, 0.8)");
+      ctx.fillStyle = water;
+      ctx.fillRect(0, h * 0.7, w, h * 0.3);
+
+      drawBamboo(ctx, now);
+
+      // Light particles
+      particles.forEach(p => {
+        p.x += p.vx;
+        p.y += p.vy;
+        p.alpha += (Math.random() - 0.5) * 0.1;
+        p.alpha = Math.max(0, Math.min(1, p.alpha));
+        if (p.x < 0) p.x = w;
+        if (p.x > w) p.x = 0;
+        if (p.y < 0) p.y = h;
         
-        {/* Enhanced lighting setup */}
-        <ambientLight intensity={0.4} color="#fff8f0" />
-        <directionalLight
-          position={[4, 8, 3]}
-          intensity={2.2}
-          color="#ffe8c8"
-          castShadow
-          shadow-mapSize={[4096, 4096]}
-          shadow-bias={-0.0001}
-          shadow-camera-left={-8}
-          shadow-camera-right={8}
-          shadow-camera-top={8}
-          shadow-camera-bottom={-8}
-        />
-        <directionalLight
-          position={[-3, 4, -2]}
-          intensity={0.6}
-          color="#d8e8ff"
-        />
-        <hemisphereLight args={["#ffe4c4", "#4a3020", 0.5]} />
-        
-        {/* Environment for realistic reflections */}
-        <Environment preset="sunset" background={false} />
-
-        <Ground />
-        <ContactShadows position={[0, -0.49, 0]} opacity={0.6} scale={24} blur={2.8} far={5} color="#3a2818" />
-
-        <Garden flowers={flowers} reduceMotion={reduceMotion} />
-        <Sparkles count={80} scale={[14, 5, 10]} size={2} speed={0.3} color="#fff8e8" position={[0, 1.2, 0]} opacity={0.7} />
-        <Cloud position={[-4, 3.5, -5]} opacity={0.35} segments={24} bounds={[4, 1.2, 1]} color="#fff8f0" />
-        <Cloud position={[4, 4, -6]} opacity={0.3} segments={24} bounds={[4, 1.2, 1]} color="#fff8f0" />
-
-        <EffectComposer>
-          <Bloom intensity={0.4} luminanceThreshold={0.5} luminanceSmoothing={0.3} mipmapBlur />
-          <DepthOfField focusDistance={0.012} focalLength={0.05} bokehScale={4} />
-          <SSAO samples={32} radius={0.3} intensity={0.8} bias={0.001} worldDistanceThreshold={1.0} worldDistanceFalloff={0.5} worldProximityThreshold={0.2} worldProximityFalloff={0.3} />
-          <Vignette eskil={false} offset={0.15} darkness={0.55} />
-        </EffectComposer>
-
-        <CameraDance reduceMotion={reduceMotion} />
-        <OrbitControls
-          enablePan={false}
-          enableZoom={false}
-          minPolarAngle={Math.PI * 0.3}
-          maxPolarAngle={Math.PI * 0.55}
-          rotateSpeed={0.2}
-        />
-      </Canvas>
-    </div>
-  );
-}
-
-function Ground() {
-  return (
-    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.5, 0]} receiveShadow>
-      <planeGeometry args={[80, 80, 64, 64]} />
-      <meshStandardMaterial 
-        color="#8a6d4c" 
-        roughness={0.95}
-        metalness={0}
-      />
-    </mesh>
-  );
-}
-
-function Garden({ flowers, reduceMotion }: { flowers: Flower[]; reduceMotion: boolean }) {
-  const placed = useMemo(() => {
-    return flowers.map((f) => {
-      const x = (f.x - 0.5) * 10;
-      const z = (f.y - 0.5) * 7 - 0.3;
-      const y = -0.5;
-      return { f, position: [x, y, z] as [number, number, number] };
-    });
-  }, [flowers]);
-
-  return (
-    <group>
-      {placed.map(({ f, position }) => (
-        <Float
-          key={f.id}
-          speed={reduceMotion ? 0 : 0.8 + (f.id % 7) * 0.12}
-          rotationIntensity={reduceMotion ? 0 : 0.1}
-          floatIntensity={reduceMotion ? 0 : 0.15}
-        >
-          <RealisticFlower
-            position={position}
-            scale={0.5 + f.scale * 0.5}
-            hue={f.hue}
-            species={f.species}
-            seed={f.id}
-          />
-        </Float>
-      ))}
-    </group>
-  );
-}
-
-// Enhanced petal geometry with more natural curvature
-function buildPetalGeometry(width: number, height: number, curl: number) {
-  const shape = new THREE.Shape();
-  // More organic teardrop outline
-  shape.moveTo(0, 0);
-  shape.bezierCurveTo(width * 0.55, height * 0.08, width * 0.5, height * 0.5, width * 0.2, height * 0.92);
-  shape.bezierCurveTo(width * 0.05, height * 1.0, -width * 0.05, height * 1.0, -width * 0.2, height * 0.92);
-  shape.bezierCurveTo(-width * 0.5, height * 0.5, -width * 0.55, height * 0.08, 0, 0);
-  const geom = new THREE.ShapeGeometry(shape, 32);
-  
-  // Enhanced cupping with subtle wave
-  const pos = geom.attributes.position as THREE.BufferAttribute;
-  for (let i = 0; i < pos.count; i++) {
-    const x = pos.getX(i);
-    const y = pos.getY(i);
-    const t = Math.min(1, y / height);
-    // More complex curvature for natural petal shape
-    const z = Math.sin(t * Math.PI * 0.8) * curl * (1 - Math.abs(x) / width) * (1 + t * 0.3);
-    pos.setZ(i, z);
-  }
-  geom.computeVertexNormals();
-  return geom;
-}
-
-const PETAL_GEOM_CACHE = new Map<string, THREE.BufferGeometry>();
-function getPetalGeom(width: number, height: number, curl: number) {
-  const key = `${width.toFixed(2)}|${height.toFixed(2)}|${curl.toFixed(2)}`;
-  let g = PETAL_GEOM_CACHE.get(key);
-  if (!g) {
-    g = buildPetalGeometry(width, height, curl);
-    PETAL_GEOM_CACHE.set(key, g);
-  }
-  return g;
-}
-
-// Enhanced leaf with vein-like detail
-function buildLeafGeometry() {
-  const s = new THREE.Shape();
-  s.moveTo(0, 0);
-  s.bezierCurveTo(0.35, 0.08, 0.4, 0.38, 0.15, 0.72);
-  s.bezierCurveTo(0.05, 0.8, -0.05, 0.8, -0.15, 0.72);
-  s.bezierCurveTo(-0.4, 0.38, -0.35, 0.08, 0, 0);
-  const g = new THREE.ExtrudeGeometry(s, { depth: 0.006, bevelEnabled: false, curveSegments: 32 });
-  g.computeVertexNormals();
-  return g;
-}
-let LEAF_GEOM: THREE.ExtrudeGeometry | null = null;
-function getLeafGeom() {
-  if (!LEAF_GEOM) LEAF_GEOM = buildLeafGeometry();
-  return LEAF_GEOM;
-}
-
-// More natural stem curve
-function buildStemGeometry(height: number, sway: number) {
-  const curve = new THREE.CatmullRomCurve3([
-    new THREE.Vector3(0, 0, 0),
-    new THREE.Vector3(sway * 0.25, height * 0.25, sway * 0.15),
-    new THREE.Vector3(-sway * 0.15, height * 0.55, -sway * 0.2),
-    new THREE.Vector3(sway * 0.05, height * 0.8, sway * 0.1),
-    new THREE.Vector3(0, height, 0),
-  ]);
-  return new THREE.TubeGeometry(curve, 48, 0.022, 12, false);
-}
-
-// Enhanced species-specific parameters
-type SpeciesStyle = {
-  petalCount: number;
-  petalRings: { count: number; tilt: number; scale: number; yLift: number }[];
-  petalSize: { w: number; h: number; curl: number };
-  hueShift: number;
-  saturation: number;
-  lightness: number;
-  centerSize: number;
-  centerColor: string;
-  hasCenter: boolean;
-  subsurface: number;
-};
-
-function speciesStyle(species: Species): SpeciesStyle {
-  switch (species) {
-    case "rose":
-      return {
-        petalCount: 16,
-        petalRings: [
-          { count: 7, tilt: -1.35, scale: 1, yLift: 0 },
-          { count: 6, tilt: -1.1, scale: 0.8, yLift: 0.025 },
-          { count: 3, tilt: -0.85, scale: 0.55, yLift: 0.05 },
-        ],
-        petalSize: { w: 0.2, h: 0.35, curl: 0.14 },
-        hueShift: 0,
-        saturation: 75,
-        lightness: 50,
-        centerSize: 0.045,
-        centerColor: "#4a0d1f",
-        hasCenter: false,
-        subsurface: 0.8,
-      };
-    case "tulip":
-      return {
-        petalCount: 6,
-        petalRings: [{ count: 6, tilt: -1.25, scale: 1, yLift: 0 }],
-        petalSize: { w: 0.2, h: 0.5, curl: 0.18 },
-        hueShift: 0,
-        saturation: 78,
-        lightness: 58,
-        centerSize: 0.055,
-        centerColor: "#2a1a0a",
-        hasCenter: true,
-        subsurface: 0.6,
-      };
-    case "lily":
-      return {
-        petalCount: 6,
-        petalRings: [{ count: 6, tilt: -1.05, scale: 1.15, yLift: 0 }],
-        petalSize: { w: 0.18, h: 0.55, curl: 0.2 },
-        hueShift: 0,
-        saturation: 68,
-        lightness: 70,
-        centerSize: 0.045,
-        centerColor: "#a07030",
-        hasCenter: true,
-        subsurface: 0.7,
-      };
-    case "poppy":
-      return {
-        petalCount: 4,
-        petalRings: [{ count: 4, tilt: -1.15, scale: 1.2, yLift: 0 }],
-        petalSize: { w: 0.3, h: 0.42, curl: 0.16 },
-        hueShift: 0,
-        saturation: 82,
-        lightness: 52,
-        centerSize: 0.09,
-        centerColor: "#120e08",
-        hasCenter: true,
-        subsurface: 0.9,
-      };
-    case "daisy":
-      return {
-        petalCount: 16,
-        petalRings: [{ count: 16, tilt: -0.95, scale: 1, yLift: 0 }],
-        petalSize: { w: 0.09, h: 0.42, curl: 0.08 },
-        hueShift: 0,
-        saturation: 15,
-        lightness: 92,
-        centerSize: 0.11,
-        centerColor: "#d49820",
-        hasCenter: true,
-        subsurface: 0.4,
-      };
-    case "lavender":
-      return {
-        petalCount: 0,
-        petalRings: [],
-        petalSize: { w: 0.07, h: 0.12, curl: 0.05 },
-        hueShift: 0,
-        saturation: 52,
-        lightness: 56,
-        centerSize: 0,
-        centerColor: "#4a2a6a",
-        hasCenter: false,
-        subsurface: 0.5,
-      };
-    case "sunflower":
-    default:
-      return {
-        petalCount: 20,
-        petalRings: [
-          { count: 16, tilt: -1.05, scale: 1, yLift: 0 },
-          { count: 12, tilt: -0.9, scale: 0.75, yLift: 0.018 },
-        ],
-        petalSize: { w: 0.12, h: 0.45, curl: 0.12 },
-        hueShift: 0,
-        saturation: 88,
-        lightness: 56,
-        centerSize: 0.13,
-        centerColor: "#2a1808",
-        hasCenter: true,
-        subsurface: 0.5,
-      };
-  }
-}
-
-function RealisticFlower({
-  position,
-  scale,
-  hue,
-  species,
-  seed,
-}: {
-  position: [number, number, number];
-  scale: number;
-  hue: number;
-  species: Species;
-  seed: number;
-}) {
-  const headRef = useRef<THREE.Group>(null);
-  const cursor = useCursor();
-  const style = useMemo(() => speciesStyle(species), [species]);
-
-  useFrame((state) => {
-    if (!headRef.current) return;
-    const t = state.clock.elapsedTime + seed * 0.15;
-    headRef.current.rotation.x = -0.12 + Math.sin(t * 0.5) * 0.035 + cursor.y * 0.15;
-    headRef.current.rotation.y = Math.sin(t * 0.35) * 0.07 + cursor.x * 0.3;
-  });
-
-  // Enhanced PBR material with subsurface scattering simulation
-  const petalMat = useMemo(
-    () =>
-      new THREE.MeshPhysicalMaterial({
-        color: new THREE.Color(`hsl(${(hue + style.hueShift) % 360}, ${style.saturation}%, ${style.lightness}%)`),
-        roughness: 0.4,
-        metalness: 0,
-        sheen: 1,
-        sheenRoughness: 0.65,
-        sheenColor: new THREE.Color(`hsl(${(hue + 25) % 360}, 85%, 82%)`),
-        clearcoat: 0.2,
-        clearcoatRoughness: 0.55,
-        transmission: style.subsurface * 0.25,
-        thickness: 0.5,
-        ior: 1.4,
-        side: THREE.DoubleSide,
-        envMapIntensity: 1.2,
-      }),
-    [hue, style]
-  );
-
-  const stemMat = useMemo(
-    () =>
-      new THREE.MeshStandardMaterial({
-        color: new THREE.Color(`hsl(${(hue + 85) % 360}, 38%, 26%)`),
-        roughness: 0.9,
-        metalness: 0,
-      }),
-    [hue]
-  );
-
-  const leafMat = useMemo(
-    () =>
-      new THREE.MeshPhysicalMaterial({
-        color: new THREE.Color(`hsl(${(hue + 95) % 360}, 48%, 30%)`),
-        roughness: 0.65,
-        metalness: 0,
-        sheen: 0.7,
-        sheenRoughness: 0.8,
-        sheenColor: new THREE.Color("#98c878"),
-        side: THREE.DoubleSide,
-        transmission: 0.15,
-        thickness: 0.3,
-      }),
-    [hue]
-  );
-
-  const centerMat = useMemo(
-    () => new THREE.MeshStandardMaterial({ 
-      color: style.centerColor, 
-      roughness: 0.85,
-      metalness: 0.1
-    }),
-    [style]
-  );
-
-  const stemGeom = useMemo(() => buildStemGeometry(1.35, (seed % 9) * 0.06 - 0.2), [seed]);
-  const leafGeom = useMemo(() => getLeafGeom(), []);
-  const petalGeom = useMemo(
-    () => getPetalGeom(style.petalSize.w, style.petalSize.h, style.petalSize.curl),
-    [style]
-  );
-
-  return (
-    <group position={position} scale={scale}>
-      {/* stem */}
-      <mesh geometry={stemGeom} material={stemMat} castShadow position={[0, 0, 0]} />
-      {/* leaf */}
-      <mesh
-        geometry={leafGeom}
-        material={leafMat}
-        castShadow
-        position={[0.045, 0.58, 0.025]}
-        rotation={[Math.PI / 2.5, 0, -0.55]}
-        scale={0.72}
-      />
-      {/* head */}
-      <group ref={headRef} position={[0, 1.38, 0]}>
-        {species === "lavender" ? (
-          <LavenderSpike hue={hue} />
-        ) : (
-          <>
-            {style.petalRings.map((ring, ri) => (
-              <group key={ri} position={[0, ring.yLift, 0]}>
-                {Array.from({ length: ring.count }).map((_, i) => {
-                  const ang = (i / ring.count) * Math.PI * 2 + ri * 0.18;
-                  return (
-                    <mesh
-                      key={i}
-                      geometry={petalGeom}
-                      material={petalMat}
-                      castShadow
-                      rotation={[ring.tilt, ang, 0]}
-                      scale={ring.scale}
-                    />
-                  );
-                })}
-              </group>
-            ))}
-            {style.hasCenter && (
-              <mesh material={centerMat} castShadow position={[0, 0.025, 0]}>
-                <sphereGeometry args={[style.centerSize, 36, 28]} />
-              </mesh>
-            )}
-          </>
-        )}
-      </group>
-    </group>
-  );
-}
-
-function LavenderSpike({ hue }: { hue: number }) {
-  const florets = useMemo(() => {
-    const arr: { y: number; x: number; s: number }[] = [];
-    for (let i = 0; i < 16; i++) {
-      arr.push({
-        y: i * 0.048,
-        x: (i % 2 === 0 ? -1 : 1) * 0.028,
-        s: 0.045 + (i % 3) * 0.009,
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255, 200, 100, ${p.alpha * 0.8})`;
+        ctx.fill();
       });
-    }
-    return arr;
-  }, []);
-  const mat = useMemo(
-    () =>
-      new THREE.MeshPhysicalMaterial({
-        color: new THREE.Color(`hsl(${hue}, 52%, 54%)`),
-        roughness: 0.45,
-        metalness: 0,
-        sheen: 0.85,
-        sheenRoughness: 0.7,
-        sheenColor: new THREE.Color(`hsl(${hue}, 75%, 68%)`),
-        transmission: 0.2,
-        thickness: 0.35,
-      }),
-    [hue]
-  );
-  return (
-    <group>
-      {florets.map((f, i) => (
-        <mesh key={i} material={mat} position={[f.x, f.y, 0]} castShadow>
-          <sphereGeometry args={[f.s, 16, 12]} />
-        </mesh>
-      ))}
-    </group>
-  );
-}
 
-function CameraDance({ reduceMotion }: { reduceMotion: boolean }) {
-  const cursor = useCursor();
-  useFrame((state) => {
-    if (reduceMotion) return;
-    const cam = state.camera;
-    const targetX = cursor.x * 1.4;
-    const targetY = 1.8 + cursor.y * -0.45;
-    cam.position.x += (targetX - cam.position.x) * 0.035;
-    cam.position.y += (targetY - cam.position.y) * 0.035;
-    cam.lookAt(0, 0.85, 0);
-  });
-  return null;
+      // Lanterns
+      lanterns.forEach(l => {
+        l.x += l.vx;
+        l.y += l.vy;
+        if (l.y < -50) {
+          l.y = h + 50;
+          l.x = Math.random() * w;
+        }
+        drawLantern(ctx, l, now);
+      });
+
+      // Lotus flowers (sort by y to render correctly in perspective)
+      const sortedFlowers = [...flowers].sort((a, b) => a.y - b.y);
+      sortedFlowers.forEach((f, i) => drawLotus(ctx, f, now, i));
+
+      ctx.restore();
+    };
+    animRef.current = requestAnimationFrame(tick);
+
+    return () => {
+      cancelAnimationFrame(animRef.current);
+      window.removeEventListener("resize", resize);
+      window.removeEventListener("resize", initScene);
+    };
+  }, [flowers, reduceMotion]);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      className="absolute inset-0 w-full h-full"
+      aria-label="Jardín de Linternas — noche romántica con linternas chinas y lotos iluminados"
+    />
+  );
 }

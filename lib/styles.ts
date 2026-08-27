@@ -18,77 +18,77 @@ export type StyleMeta = {
 
 // dayOfWeek (0 = Sunday) -> style
 export const STYLE_BY_DAY: StyleId[] = [
-  "lineart", // Sunday
-  "watercolor", // Monday
-  "pointillism", // Tuesday
-  "cartoon", // Wednesday
-  "realistic", // Thursday
-  "impressionism", // Friday
-  "artnouveau", // Saturday
+  "lineart",      // Sunday
+  "watercolor",   // Monday
+  "pointillism",  // Tuesday
+  "cartoon",      // Wednesday
+  "realistic",    // Thursday
+  "impressionism",// Friday
+  "artnouveau",   // Saturday
 ];
 
 export const STYLES: Record<StyleId, StyleMeta> = {
   watercolor: {
     id: "watercolor",
-    nameEs: "Acuarela",
-    nameEn: "Watercolor",
+    nameEs: "Nebulosa de Pétalos",
+    nameEn: "Petal Nebula",
     background:
-      "radial-gradient(ellipse at 50% 0%, #fef6f0 0%, #f7e6df 45%, #e9c9d4 100%)",
-    ink: "#3a2a36",
-    accent: "#c97a8a",
+      "radial-gradient(ellipse at 30% 20%, #1a0a2e 0%, #16213e 35%, #0f3460 65%, #533483 100%)",
+    ink: "#f0e6ff",
+    accent: "#c77dff",
   },
   pointillism: {
     id: "pointillism",
-    nameEs: "Puntillismo",
-    nameEn: "Pointillism",
+    nameEs: "Jardín Seurat",
+    nameEn: "Seurat Garden",
     background:
-      "radial-gradient(ellipse at 50% 0%, #f3ecd8 0%, #e8d9b3 50%, #b8c8a6 100%)",
-    ink: "#2c2a1e",
-    accent: "#d97757",
+      "radial-gradient(ellipse at 50% 0%, #ff6b35 0%, #f7931e 25%, #fcee21 55%, #39b54a 100%)",
+    ink: "#1a0a00",
+    accent: "#e63946",
   },
   cartoon: {
     id: "cartoon",
-    nameEs: "Animación",
-    nameEn: "Animation",
+    nameEs: "Jardín Hello Kitty",
+    nameEn: "Hello Kitty Garden",
     background:
-      "linear-gradient(180deg, #bde6ff 0%, #e5f7d0 60%, #b6e2a3 100%)",
-    ink: "#1f2a3a",
-    accent: "#ff6b9a",
+      "linear-gradient(135deg, #ffe4e1 0%, #ffb6c1 40%, #ff69b4 80%, #ff1493 100%)",
+    ink: "#8b005d",
+    accent: "#ffffff",
   },
   realistic: {
     id: "realistic",
-    nameEs: "Realista",
-    nameEn: "Realistic",
+    nameEs: "Jardín de Linternas",
+    nameEn: "Lantern Garden",
     background:
-      "linear-gradient(180deg, #f6d9b8 0%, #e7b894 35%, #6f5a3e 100%)",
-    ink: "#1c140d",
-    accent: "#b8553a",
+      "linear-gradient(180deg, #1a0505 0%, #3e0a0a 40%, #7a1111 75%, #b51a1a 100%)",
+    ink: "#fdf6e3",
+    accent: "#ffd700",
   },
   impressionism: {
     id: "impressionism",
-    nameEs: "Girasoles",
-    nameEn: "Sunflowers",
+    nameEs: "Noche Estrellada",
+    nameEn: "Starry Night",
     background:
-      "linear-gradient(180deg, #f1d8a8 0%, #e6b97a 45%, #a8a368 75%, #5d6e3a 100%)",
-    ink: "#2a1d0a",
-    accent: "#d29a2a",
+      "radial-gradient(ellipse at 50% 30%, #1a237e 0%, #0d47a1 30%, #1565c0 55%, #0a192f 100%)",
+    ink: "#fffde7",
+    accent: "#ffd54f",
   },
   artnouveau: {
     id: "artnouveau",
-    nameEs: "Art Nouveau",
-    nameEn: "Art Nouveau",
+    nameEs: "Manuscrito Iluminado",
+    nameEn: "Illuminated Manuscript",
     background:
-      "radial-gradient(ellipse at 50% 30%, #f3e3bf 0%, #cfa867 60%, #6e4a26 100%)",
-    ink: "#1c130a",
-    accent: "#a37326",
+      "radial-gradient(ellipse at 50% 0%, #fdf6e3 0%, #f5e6c8 40%, #e8d5a3 70%, #c8a96e 100%)",
+    ink: "#2c1810",
+    accent: "#b8860b",
   },
   lineart: {
     id: "lineart",
-    nameEs: "Trazo",
-    nameEn: "Line art",
-    background: "linear-gradient(180deg, #fbf8f1 0%, #f3ece0 100%)",
-    ink: "#1a1a1a",
-    accent: "#1a1a1a",
+    nameEs: "Jardín de Tinta",
+    nameEn: "Ink Garden",
+    background: "linear-gradient(180deg, #faf8f2 0%, #f5f0e8 50%, #ece4d4 100%)",
+    ink: "#1a1209",
+    accent: "#4a3728",
   },
 };
 
